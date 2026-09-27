@@ -77,6 +77,14 @@ public:
         return whichTaskBar(client) != nullptr;
     }
 
+    // True if this instance should host a "singleton" applet configured
+    // with the given monitor-descriptor preference (one of the
+    // TaskBar*Screen prefs, e.g. taskBarMailboxScreen): always true when
+    // there's only one bar (TaskBarShowOnAllMonitors off) so a stray
+    // *Screen setting can never leave a singleton widget homeless;
+    // otherwise true only on the instance matching screenFromDescriptor().
+    bool hostsSingleton(const char* screenPref) const;
+
     // Broadcast helpers for the widgets that are replicated across every
     // TaskBar instance (workspace pager, toolbar, collapse) and for
     // whole-desktop lifecycle events (screen change, idle relayout).

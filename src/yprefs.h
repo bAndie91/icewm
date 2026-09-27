@@ -44,6 +44,20 @@ XSV(const char *, iconThemes,                   "*:-HighContrast")
 XSV(const char *, themeName,                    CONFIG_DEFAULT_THEME)
 XSV(const char *, xineramaPrimaryScreenName,    0)
 
+// Per-widget monitor selection for the "singleton" taskbar applets (see
+// MULTITASKBAR-PLAN.md, D2/Piece 3). Each is empty by default, meaning
+// "follow XineramaPrimaryScreen/XRRPrimaryScreenName as before"; resolved
+// via YDesktop::screenFromDescriptor(), so a number or an XRandR output
+// name both work, and an unplugged/invalid value falls back to primary.
+XSV(const char *, taskBarMailboxScreen,         0)
+XSV(const char *, taskBarCPUStatusScreen,       0)
+XSV(const char *, taskBarMEMStatusScreen,       0)
+XSV(const char *, taskBarNetStatusScreen,       0)
+XSV(const char *, taskBarAPMScreen,             0)
+XSV(const char *, taskBarKeyboardScreen,        0)
+XSV(const char *, taskBarSystemTrayScreen,      0)
+XSV(const char *, taskBarAddressBarScreen,      0)
+
 enum WMLook {
     lookWin95  = 1 << 0,
     lookMotif  = 1 << 1,

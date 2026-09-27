@@ -108,9 +108,23 @@ Each piece is sized to be doable in one sitting. Status below.
      actions) — these still only have real content on one instance
      until Pieces 3/4, so routing them further now would be premature.
    - Builds clean, no new warnings.
-3. **[TODO]** D2: implement the replicate/singleton applet split in
-   `TaskBar::initApplets()`/`initToolbar()`, plus the 8 per-widget
-   `*Screen` preferences.
+3. **[DONE]** D2: implemented the replicate/singleton applet split in
+   `TaskBar::initApplets()`, plus the 8 per-widget `*Screen`
+   preferences (`TaskBarMailboxScreen`, `TaskBarCPUStatusScreen`,
+   `TaskBarMEMStatusScreen`, `TaskBarNetStatusScreen`,
+   `TaskBarAPMScreen`, `TaskBarKeyboardScreen`,
+   `TaskBarSystemTrayScreen`, `TaskBarAddressBarScreen`). New
+   `TaskBar::hostsSingleton(screenPref)` gates each singleton widget's
+   construction: always true when there's only one bar
+   (`TaskBarShowOnAllMonitors` off), so a stray `*Screen` setting can
+   never leave a widget homeless on a single-taskbar setup; otherwise
+   true only on the instance matching `screenFromDescriptor()`. The
+   replicated widgets (clock, start menu, toolbar, window-list button,
+   show-desktop, collapse button, workspace pager, task pane, window
+   tray) were untouched — they already get constructed on every
+   instance since each `TaskBar` calls its own `initApplets()`.
+   Documented all 9 new prefs (this one + the 8 `*Screen` prefs) in
+   `man/icewm-preferences.pod`. Builds clean.
 4. **[TODO]** D3: `TaskBarWindowsHomeScreenOnly` pref; gate task-button
    routing in `atasks.cc` / `TaskBar::addTasksApp` / `delistFrame` on
    `frame->getScreen()` vs. this bar's screen index.

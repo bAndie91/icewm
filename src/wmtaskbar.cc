@@ -284,6 +284,13 @@ TaskBar* TaskBar::whichTaskBar(const YFrameClient* client) {
     return nullptr;
 }
 
+bool TaskBar::hostsSingleton(const char* screenPref) const {
+    if (!taskBarShowOnAllMonitors)
+        return true;
+    return fScreen == desktop->screenFromDescriptor(screenPref,
+                                                      xineramaPrimaryScreen);
+}
+
 class TaskBarMenu : public YMenu {
 public:
     void updatePopup() {
@@ -333,20 +340,20 @@ public:
 
 void TaskBar::initApplets() {
 #ifdef MEM_STATES
-    if (taskBarShowMEMStatus)
+    if (taskBarShowMEMStatus && hostsSingleton(taskBarMEMStatusScreen))
         fMEMStatus = new MEMStatus(this, this);
     else
         fMEMStatus = nullptr;
 #endif
 
 #ifdef IWM_STATES
-    if (taskBarShowCPUStatus)
+    if (taskBarShowCPUStatus && hostsSingleton(taskBarCPUStatusScreen))
         fCPUStatus = new CPUStatusControl(smActionListener, this, this);
     else
         fCPUStatus = nullptr;
 #endif
 
-    if (taskBarShowNetStatus)
+    if (taskBarShowNetStatus && hostsSingleton(taskBarNetStatusScreen))
         fNetStatus = new NetStatusControl(app, smActionListener, this, this);
     else
         fNetStatus = nullptr;
@@ -357,7 +364,8 @@ void TaskBar::initApplets() {
         fClock = nullptr;
 
 #ifdef MAX_ACPI_BATTERY_NUM
-    if (taskBarShowApm && (access(APMDEV, 0) == 0 ||
+    bool hostsApm = hostsSingleton(taskBarAPMScreen);
+    if (hostsApm && taskBarShowApm && (access(APMDEV, 0) == 0 ||
                            access("/sys/class/power_supply", 0) == 0 ||
                            access("/proc/acpi", 0) == 0 ||
                            access("/dev/acpi", 0) == 0 ||
@@ -366,7 +374,7 @@ void TaskBar::initApplets() {
         fApm = new YApm(this);
         fApm->setTitle("IceAPM");
     }
-    else if (!taskBarShowApm && taskBarShowApmAuto)
+    else if (hostsApm && !taskBarShowApm && taskBarShowApmAuto)
     {
         fApm = new YApm(this, true);
         if ( ! fApm->hasBatteries()) {
@@ -396,12 +404,12 @@ void TaskBar::initApplets() {
     } else
         fCollapseButton = nullptr;
 
-    if (taskBarShowMailboxStatus) {
+    if (taskBarShowMailboxStatus && hostsSingleton(taskBarMailboxScreen)) {
         fMailBoxControl = new MailBoxControl(app, smActionListener, this, this);
     } else
         fMailBoxControl = nullptr;
 
-    if (configKeyboards.nonempty()) {
+    if (configKeyboards.nonempty() && hostsSingleton(taskBarKeyboardScreen)) {
         fKeyboardStatus = new KeyboardStatus(app, this, this);
     } else
         fKeyboardStatus = nullptr;
@@ -453,7 +461,7 @@ void TaskBar::initApplets() {
                 : new AWorkspaces(this);
     fWorkspaces->setTitle("Workspaces");
 
-    if (enableAddressBar) {
+    if (enableAddressBar && hostsSingleton(taskBarAddressBarScreen)) {
         fAddressBar = new AddressBar(app, this);
         fAddressBar->setTitle("AddressBar");
     }
@@ -468,7 +476,7 @@ void TaskBar::initApplets() {
     } else
         fWindowTray = nullptr;
 
-    if (taskBarEnableSystemTray) {
+    if (taskBarEnableSystemTray && hostsSingleton(taskBarSystemTrayScreen)) {
         const char atomstr[] =
 #ifdef CONFIG_EXTERNAL_TRAY
                    "_ICEWM_INTTRAY_S"
