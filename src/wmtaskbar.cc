@@ -584,7 +584,7 @@ void TaskBar::updateLayout(unsigned &size_w, unsigned &size_h) {
         }
     }
 
-    if (taskBarShowMailboxStatus) {
+    if (fMailBoxControl) {
         for (auto m = fMailBoxControl->iterator(); ++m; ) {
             nw = LayoutInfo( *m, Over, Top, Show, Keep, 1, 1 );
             wlist.append(nw);
@@ -596,7 +596,7 @@ void TaskBar::updateLayout(unsigned &size_w, unsigned &size_h) {
     }
 
 #ifdef IWM_STATES
-    if (taskBarShowCPUStatus) {
+    if (fCPUStatus) {
         auto it = fCPUStatus->getIterator();
         while (++it)
         {
@@ -611,7 +611,7 @@ void TaskBar::updateLayout(unsigned &size_w, unsigned &size_h) {
     wlist.append(nw);
 #endif
 
-    if (taskBarShowNetStatus) {
+    if (fNetStatus) {
         auto it = fNetStatus->getIterator();
         while (++it)
         {
