@@ -4,6 +4,7 @@
 #include "ymsgbox.h"
 #include "yicon.h"
 #include "ylist.h"
+#include "yarray.h"
 #include "WinMgr.h"
 #include "workspaces.h"
 
@@ -455,8 +456,12 @@ private:
     Window topSide, leftSide, rightSide, bottomSide;
     Window topLeft, topRight, bottomLeft, bottomRight;
 
-    TaskBarApp *fTaskBarApp;
-    TrayApp *fTrayApp;
+    // One entry per active TaskBar instance (parallel to the global
+    // `taskBars` array; see MULTITASKBAR-PLAN.md Piece 4) -- a frame can
+    // have a button on more than one bar at once unless
+    // TaskBarWindowsHomeScreenOnly restricts it to its home screen.
+    YArray<TaskBarApp*> fTaskBarApps;
+    YArray<TrayApp*> fTrayApps;
     MiniIcon *fMiniIcon;
     ref<YIcon> fFrameIcon;
     lazy<YTimer> fFocusEventTimer;

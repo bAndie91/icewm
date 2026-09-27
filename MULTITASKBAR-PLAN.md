@@ -125,9 +125,25 @@ Each piece is sized to be doable in one sitting. Status below.
    instance since each `TaskBar` calls its own `initApplets()`.
    Documented all 9 new prefs (this one + the 8 `*Screen` prefs) in
    `man/icewm-preferences.pod`. Builds clean.
-4. **[TODO]** D3: `TaskBarWindowsHomeScreenOnly` pref; gate task-button
-   routing in `atasks.cc` / `TaskBar::addTasksApp` / `delistFrame` on
-   `frame->getScreen()` vs. this bar's screen index.
+4. **[DONE]** D3: added `TaskBarWindowsHomeScreenOnly` (default off).
+   `YFrameWindow`'s single `fTaskBarApp`/`fTrayApp` pointers became
+   `YArray<TaskBarApp*> fTaskBarApps`/`YArray<TrayApp*> fTrayApps`,
+   parallel-indexed to the global `taskBars` array, since a frame can
+   now have a button on more than one bar simultaneously (the default:
+   every bar shows every window, same as today just multiplied across
+   bars). `updateAppStatus()` loops over `taskBars` and, when the pref
+   is on, only creates/shows a button on the bar whose `screen()`
+   matches the frame's own `getScreen()` (the existing largest-overlap
+   helper from `YWindow`/`YDesktop` -- no new tracking code needed, as
+   suspected back when this decision was made). `updateTaskBar()`,
+   `removeAppStatus()`, and the repaint call sites in `updateTitle()`/
+   `updateIconTitle()`/`updateIcon()` all updated to loop accordingly.
+   Confirmed `TaskPane::addApp()` (`atasks.cc`) has no shared/static
+   state across instances, so multiple independent `TaskPane`s each
+   holding their own button for the same frame is safe. Builds clean.
+   Caveat noted in code comments: the parallel arrays only grow for
+   now; Piece 5's hotplug rebuild will need to reconcile them when
+   `taskBars` itself is rebuilt rather than just extended.
 5. **[TODO]** D5: hotplug — rebuild `TaskBar` set on monitor
    add/remove.
 6. **[TODO]** D4: per-monitor strut reservation + workarea calc in

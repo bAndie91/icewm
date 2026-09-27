@@ -70,8 +70,6 @@ YFrameWindow::YFrameWindow(
     topRight(None),
     bottomLeft(None),
     bottomRight(None),
-    fTaskBarApp(nullptr),
-    fTrayApp(nullptr),
     fMiniIcon(nullptr),
     fFrameIcon(null),
     fTabs(1),
@@ -2460,17 +2458,23 @@ void YFrameWindow::updateTitle() {
         fTitleBar->repaint();
     if (windowList && client()->getClientItem())
         client()->getClientItem()->repaint();
-    if (fTaskBarApp) {
-        fTaskBarApp->setToolTip(getTitle());
-        fTaskBarApp->repaint();
+    if (fTaskBarApps.nonempty()) {
+        for (int i = 0; i < fTaskBarApps.getCount(); ++i) {
+            if (fTaskBarApps[i]) {
+                fTaskBarApps[i]->setToolTip(getTitle());
+                fTaskBarApps[i]->repaint();
+            }
+        }
     }
-    if (fTrayApp)
-        fTrayApp->setToolTip(getTitle());
+    for (int i = 0; i < fTrayApps.getCount(); ++i)
+        if (fTrayApps[i])
+            fTrayApps[i]->setToolTip(getTitle());
 }
 
 void YFrameWindow::updateIconTitle() {
-    if (fTaskBarApp)
-        fTaskBarApp->repaint();
+    for (int i = 0; i < fTaskBarApps.getCount(); ++i)
+        if (fTaskBarApps[i])
+            fTaskBarApps[i]->repaint();
     if (isIconic())
         fMiniIcon->repaint();
 }
@@ -2804,10 +2808,12 @@ void YFrameWindow::updateIcon() {
         fTitleBar->menuButton()->repaint();
     if (fMiniIcon)
         fMiniIcon->updateIcon();
-    if (fTrayApp)
-        fTrayApp->repaint();
-    if (fTaskBarApp)
-        fTaskBarApp->repaint();
+    for (int i = 0; i < fTrayApps.getCount(); ++i)
+        if (fTrayApps[i])
+            fTrayApps[i]->repaint();
+    for (int i = 0; i < fTaskBarApps.getCount(); ++i)
+        if (fTaskBarApps[i])
+            fTaskBarApps[i]->repaint();
     if (windowList && windowList->visible() && client()->getClientItem())
         client()->getClientItem()->repaint();
     if (taskBar)
@@ -3697,75 +3703,102 @@ void YFrameWindow::updateProperties(YFrameClient* client) {
 }
 
 void YFrameWindow::updateTaskBar() {
-    if (taskBar && fManaged) {
-        taskBar->updateFrame(this);
+    if (fManaged) {
+        for (int i = 0; i < taskBars.getCount(); ++i)
+            taskBars[i]->updateFrame(this);
     }
 }
 
 void YFrameWindow::updateAppStatus() {
-    if (taskBar && fManaged) {
-        bool needTrayApp(false);
+    if (taskBars.isEmpty() || !fManaged)
+        return;
 
-        if (!isHidden() &&
-            (notbit(frameOptions(), foIgnoreTaskBar) || isMinimized()) &&
-            (getTrayOption() != WinTrayIgnore))
-            if (trayShowAllWindows || visibleNow())
-                needTrayApp = true;
+    // Keep the per-frame arrays parallel to taskBars (they can only grow
+    // here; Piece 5's hotplug rebuild will need to reconcile them when
+    // taskBars itself is rebuilt, not just grown).
+    while (fTrayApps.getCount() < taskBars.getCount())
+        fTrayApps.append(nullptr);
+    while (fTaskBarApps.getCount() < taskBars.getCount())
+        fTaskBarApps.append(nullptr);
 
-        if (needTrayApp && fTrayApp == nullptr)
-            fTrayApp = taskBar->addTrayApp(this);
+    bool trayWanted(false);
 
-        if (fTrayApp) {
-            fTrayApp->setShown(needTrayApp);
-            if (fTrayApp->getShown()) ///!!! optimize
-                fTrayApp->repaint();
+    if (!isHidden() &&
+        (notbit(frameOptions(), foIgnoreTaskBar) || isMinimized()) &&
+        (getTrayOption() != WinTrayIgnore))
+        if (trayShowAllWindows || visibleNow())
+            trayWanted = true;
+
+    bool taskWanted = true;
+    bool grouping = false;
+
+    if (isSkipTaskBar())
+        taskWanted = false;
+    if (isHidden())
+        taskWanted = false;
+    if (getTrayOption() == WinTrayExclusive)
+        taskWanted = false;
+    if (getTrayOption() == WinTrayMinimized && isMinimized())
+        taskWanted = false;
+    if (client()->isTransient() && !taskBarShowTransientWindows)
+        taskWanted = false;
+    if (!visibleNow() && !taskBarShowAllWindows) {
+        grouping = bool(taskBarTaskGrouping);
+        taskWanted = false;
+    }
+    if (isUrgent())
+        taskWanted = true;
+
+    if (frameOption(foIgnoreTaskBar))
+        taskWanted = grouping = false;
+    if (frameOption(foNoIgnoreTaskBar))
+        taskWanted = true;
+
+    // D3: when TaskBarWindowsHomeScreenOnly is off (the default), every
+    // bar shows every window, same as a single-taskbar setup always did.
+    // When it's on, only the bar whose screen matches this frame's own
+    // getScreen() (largest-overlap monitor) gets a button.
+    int home = taskBarWindowsHomeScreenOnly ? getScreen() : -1;
+
+    for (int i = 0; i < taskBars.getCount(); ++i) {
+        TaskBar* tb = taskBars[i];
+        bool onThisScreen = (home == -1 || home == tb->screen());
+        bool needTrayApp = trayWanted && onThisScreen;
+        bool needTaskBarApp = taskWanted && onThisScreen;
+        bool wantTaskBarApp = (needTaskBarApp || (grouping && onThisScreen));
+
+        if (needTrayApp && fTrayApps[i] == nullptr)
+            fTrayApps[i] = tb->addTrayApp(this);
+
+        if (fTrayApps[i]) {
+            fTrayApps[i]->setShown(needTrayApp);
+            if (fTrayApps[i]->getShown()) ///!!! optimize
+                fTrayApps[i]->repaint();
         }
-        taskBar->relayoutTray();
+        tb->relayoutTray();
 
-        bool needTaskBarApp = true;
-        bool grouping = false;
+        if (wantTaskBarApp && fTaskBarApps[i] == nullptr)
+            fTaskBarApps[i] = tb->addTasksApp(this);
 
-        if (isSkipTaskBar())
-            needTaskBarApp = false;
-        if (isHidden())
-            needTaskBarApp = false;
-        if (getTrayOption() == WinTrayExclusive)
-            needTaskBarApp = false;
-        if (getTrayOption() == WinTrayMinimized && isMinimized())
-            needTaskBarApp = false;
-        if (client()->isTransient() && !taskBarShowTransientWindows)
-            needTaskBarApp = false;
-        if (!visibleNow() && !taskBarShowAllWindows) {
-            grouping = bool(taskBarTaskGrouping);
-            needTaskBarApp = false;
+        if (fTaskBarApps[i]) {
+            fTaskBarApps[i]->setFlash(isUrgent());
+            fTaskBarApps[i]->setShown(needTaskBarApp);
+            if (fTaskBarApps[i]->getShown()) ///!!! optimize
+                fTaskBarApps[i]->repaint();
         }
-        if (isUrgent())
-            needTaskBarApp = true;
-
-        if (frameOption(foIgnoreTaskBar))
-            needTaskBarApp = grouping = false;
-        if (frameOption(foNoIgnoreTaskBar))
-            needTaskBarApp = true;
-
-        if ((needTaskBarApp || grouping) && fTaskBarApp == nullptr)
-            fTaskBarApp = taskBar->addTasksApp(this);
-
-        if (fTaskBarApp) {
-            fTaskBarApp->setFlash(isUrgent());
-            fTaskBarApp->setShown(needTaskBarApp);
-            if (fTaskBarApp->getShown()) ///!!! optimize
-                fTaskBarApp->repaint();
-        }
-        taskBar->relayoutTasks();
+        tb->relayoutTasks();
     }
 }
 
 void YFrameWindow::removeAppStatus() {
-    if (taskBar) {
-        taskBar->delistFrame(this, fTaskBarApp, fTrayApp);
-        fTaskBarApp = nullptr;
-        fTrayApp = nullptr;
+    for (int i = 0; i < taskBars.getCount(); ++i) {
+        TaskBarApp* task = (i < fTaskBarApps.getCount()) ? fTaskBarApps[i] : nullptr;
+        TrayApp* tray = (i < fTrayApps.getCount()) ? fTrayApps[i] : nullptr;
+        if (task || tray)
+            taskBars[i]->delistFrame(this, task, tray);
     }
+    fTaskBarApps.clear();
+    fTrayApps.clear();
 }
 
 void YFrameWindow::handleMsgBox(YMsgBox* msgbox, int operation) {
