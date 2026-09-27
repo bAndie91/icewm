@@ -432,6 +432,7 @@ cfoption icewm_preferences[] = {
     OSV("TaskBarJustify",                       &taskBarJustify, "Taskbar justify left, right or center"),
 
     OIV("XineramaPrimaryScreen",                &xineramaPrimaryScreen, 0, 63, "Primary screen for xinerama where taskbar is shown"),
+    OBV("TaskBarShowOnAllMonitors",             &taskBarShowOnAllMonitors,      "Show a task bar on every monitor instead of only the primary one"),
     OIV("FocusRequestFlashTime",                &focusRequestFlashTime, 0, (3600 * 24), "Number of seconds the taskbar app will blink when requesting focus (0 = forever)"),
     OIV("FocusRequestFlashInterval",            &focusRequestFlashInterval, 0, 30000, "Taskbar blink interval (ms) when requesting focus (0 = blinking disabled)"),
     OIV("NestedThemeMenuMinNumber",             &nestedThemeMenuMinNumber,  0, 1234,  "Minimal number of themes after which the Themes menu becomes nested (0=disabled)"),

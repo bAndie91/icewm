@@ -1530,7 +1530,8 @@ YWMApp::~YWMApp() {
     }
 
     delete ctrlAltDelete; ctrlAltDelete = nullptr;
-    delete taskBar; taskBar = nullptr;
+    while (taskBars.nonempty())
+        delete taskBars[0]; // ~TaskBar() self-removes from taskBars
 
     if (statusMoveSize)
         statusMoveSize = null;
@@ -2013,8 +2014,18 @@ int main(int argc, char **argv) {
 }
 
 void YWMApp::createTaskBar() {
-    if (showTaskBar && taskBar == nullptr) {
-        taskBar = new TaskBar(this, desktop, this, this);
+    if (showTaskBar && taskBars.isEmpty()) {
+        // Piece 1 of the multi-taskbar work: this creates one TaskBar per
+        // monitor when TaskBarShowOnAllMonitors is set. Most of TaskBar's
+        // own code and ~58 call sites elsewhere still assume a single
+        // `taskBar` (the compatibility pointer TaskBar's ctor/dtor keep
+        // pointing at the primary-screen instance) — those are routed to
+        // be properly screen-aware in a later piece, not here.
+        int count = taskBarShowOnAllMonitors ? desktop->getScreenCount() : 1;
+        for (int screen = 0; screen < count; ++screen) {
+            int s = taskBarShowOnAllMonitors ? screen : xineramaPrimaryScreen;
+            new TaskBar(this, desktop, this, this, s);
+        }
         for (YFrameIter frame = manager->focusedIterator(); ++frame; ) {
             frame->updateAppStatus();
         }

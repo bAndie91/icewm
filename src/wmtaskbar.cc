@@ -38,6 +38,7 @@
 #include "intl.h"
 
 TaskBar *taskBar;
+YArray<TaskBar*> taskBars;
 
 YColorName taskBarBg(&clrDefaultTaskBar);
 
@@ -108,8 +109,9 @@ bool EdgeTrigger::handleTimer(YTimer *t) {
     return fTaskBar->autoTimer(fHideOrShow);
 }
 
-TaskBar::TaskBar(IApp *app, YWindow *aParent, YActionListener *wmActionListener, YSMListener *smActionListener):
+TaskBar::TaskBar(IApp *app, YWindow *aParent, YActionListener *wmActionListener, YSMListener *smActionListener, int screen):
     YFrameClient(aParent, nullptr, None),
+    fScreen(screen),
     fSurface(taskBarBg, taskbackPixmap, taskbackPixbuf),
     fTasks(nullptr),
     fCollapseButton(nullptr),
@@ -139,7 +141,14 @@ TaskBar::TaskBar(IApp *app, YWindow *aParent, YActionListener *wmActionListener,
     fButtonUpdate(false),
     fWorkspacesUpdate(false)
 {
-    taskBar = this;
+    taskBars.append(this);
+    // Compatibility shim: `taskBar` still means "the one taskbar" for the
+    // many call sites not yet updated to iterate `taskBars`/pick by screen.
+    // Prefer the primary-screen instance when there's a choice; otherwise
+    // (or if this is the only one so far) fall back to whichever was
+    // constructed, matching pre-multi-taskbar behavior when there's just one.
+    if (taskBar == nullptr || fScreen == xineramaPrimaryScreen)
+        taskBar = this;
 
     addStyle(wsDesktopAware | wsTakeFocus | wsNoExpose);
     setWinHintsHint(WinHintsSkipFocus |
@@ -200,7 +209,16 @@ TaskBar::~TaskBar() {
     delete fCollapseButton; fCollapseButton = nullptr;
     delete fShowDesktop; fShowDesktop = nullptr;
     xapp->dropClipboard();
-    taskBar = nullptr;
+
+    for (int i = 0; i < taskBars.getCount(); ++i) {
+        if (taskBars[i] == this) {
+            taskBars.remove(i);
+            break;
+        }
+    }
+    if (taskBar == this)
+        taskBar = taskBars.nonempty() ? taskBars[0] : nullptr;
+
     MSG(("taskBar delete"));
 }
 
@@ -558,7 +576,7 @@ void TaskBar::updateLayout(unsigned &size_w, unsigned &size_h) {
         }
     }
 
-    const unsigned dw = desktop->getScreenGeometry().width();
+    const unsigned dw = desktop->getScreenGeometry(fScreen).width();
     const unsigned tw = (dw * unsigned(taskBarWidthPercentage)) / 100U;
     unsigned w = tw;
 
@@ -714,7 +732,7 @@ void TaskBar::updateLocation() {
 
     int dx, dy;
     unsigned dw, dh;
-    desktop->getScreenGeometry(&dx, &dy, &dw, &dh, -1);
+    desktop->getScreenGeometry(&dx, &dy, &dw, &dh, fScreen);
 
     int x = dx;
     unsigned int w = 0;
@@ -785,7 +803,7 @@ void TaskBar::updateLocation() {
 void TaskBar::updateWMHints() {
     YStrut strut;
     if (!taskBarAutoHide && !fIsCollapsed) {
-        YRect geo = desktop->getScreenGeometry();
+        YRect geo = desktop->getScreenGeometry(fScreen);
         if (y() + height() == geo.y() + geo.height()) {
             strut.bottom = Atom(height());
         }

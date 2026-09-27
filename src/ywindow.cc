@@ -2009,6 +2009,47 @@ void YDesktop::getScreenGeometry(int *x, int *y,
     *height = info.height;
 }
 
+int YDesktop::screenFromDescriptor(const char* descriptor, int fallback) {
+    if (isEmpty(descriptor))
+        return fallback;
+
+    char* end = nullptr;
+    long n = strtol(descriptor, &end, 10);
+    if (end && *end == '\0' && inrange(int(n), 0, xiInfo.getCount() - 1))
+        return int(n);
+
+#ifdef CONFIG_XRANDR
+    if (xrandr.supported && !xrrDisable) {
+        XRRScreenResources* xrrsr =
+            XRRGetScreenResources(xapp->display(), handle());
+        if (xrrsr) {
+            for (int i = 0; i < xrrsr->noutput; i++) {
+                XRROutputInfo* oinfo =
+                    XRRGetOutputInfo(xapp->display(), xrrsr, xrrsr->outputs[i]);
+                if (oinfo) {
+                    if (oinfo->name && strcmp(oinfo->name, descriptor) == 0) {
+                        RRCrtc crtc = oinfo->crtc;
+                        XRRFreeOutputInfo(oinfo);
+                        for (int s = 0; s < xiInfo.getCount(); s++) {
+                            if (xiInfo[s].screen_number == int(crtc)) {
+                                XRRFreeScreenResources(xrrsr);
+                                return s;
+                            }
+                        }
+                        break;
+                    }
+                    XRRFreeOutputInfo(oinfo);
+                }
+            }
+            XRRFreeScreenResources(xrrsr);
+        }
+    }
+#endif
+    MSG(("screenFromDescriptor: no match for \"%s\", using fallback %d",
+         descriptor, fallback));
+    return fallback;
+}
+
 int YDesktop::getScreenForRect(int x, int y, unsigned width, unsigned height) {
     int screen = 0;
     if (1 < xiInfo.getCount()) {

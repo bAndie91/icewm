@@ -6,6 +6,7 @@
 #include "wmclient.h"
 #include "yxtray.h"
 #include "applet.h"
+#include "yarray.h"
 
 class ObjectBar;
 class ObjectButton;
@@ -60,8 +61,13 @@ class TaskBar:
     public IAppletContainer
 {
 public:
-    TaskBar(IApp *app, YWindow *aParent, YActionListener *wmActionListener, YSMListener *smActionListener);
+    // screen: the Xinerama/RandR monitor index this instance belongs to
+    // and positions itself on (see getScreenGeometry()).
+    TaskBar(IApp *app, YWindow *aParent, YActionListener *wmActionListener,
+            YSMListener *smActionListener, int screen);
     virtual ~TaskBar();
+
+    int screen() const { return fScreen; }
 
 private:
     virtual void paint(Graphics &g, const YRect &r);
@@ -143,6 +149,7 @@ private:
     void updateLayout(unsigned& size_w, unsigned& size_h);
 
 private:
+    int fScreen;
     YSurface fSurface;
     TaskPane *fTasks;
 
@@ -194,6 +201,12 @@ private:
 };
 
 extern TaskBar *taskBar; // !!! get rid of this
+// All live TaskBar instances (one, unless TaskBarShowOnAllMonitors is set,
+// in which case there is one per active monitor). `taskBar` above always
+// points at one of these (the primary-screen instance when there is a
+// choice) for source compatibility with code not yet updated to be
+// screen-aware; see the multi-taskbar plan doc for the migration status.
+extern YArray<TaskBar*> taskBars;
 
 extern YColorName taskBarBg;
 

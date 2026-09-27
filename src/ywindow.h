@@ -388,6 +388,12 @@ public:
                            int screen_no = -1);
     int getScreenForRect(int x, int y, unsigned width, unsigned height);
 
+    // Resolve a preference value naming a monitor: empty string -> fallback,
+    // a plain number -> that screen index (if in range), otherwise treated
+    // as an XRandR output name (e.g. "DP-1") and resolved to the screen
+    // index currently driven by that output. Falls back on any lookup miss.
+    int screenFromDescriptor(const char* descriptor, int fallback);
+
     int getScreenCount() const { return xiInfo.getCount(); }
 
     virtual void grabKeys() {}
