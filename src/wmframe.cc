@@ -193,7 +193,7 @@ YFrameWindow::~YFrameWindow() {
     }
 
     if (taskBar) {
-        taskBar->workspacesRepaint(getWorkspace());
+        TaskBar::workspacesRepaintAll(getWorkspace());
     }
 }
 
@@ -544,7 +544,7 @@ void YFrameWindow::doManage(YFrameClient *clientw, bool &doActivate, bool &reque
     if (mo)
         setWorkspace(mo->getWorkspace());
 
-    if (isUnmapped() || client() == taskBar) {
+    if (isUnmapped() || TaskBar::isTaskBar(client())) {
         doActivate = false;
         requestFocus = false;
     }
@@ -786,9 +786,13 @@ void YFrameWindow::getNewPos(const XConfigureRequestEvent& cr,
     if (affectsWorkArea() == false) {
         int screen = desktop->getScreenForRect(cx, cy, cw, ch);
         int left, top, right, bottom;
-        if (taskBar && taskBar->getFrame() &&
-            screen == taskBar->getFrame()->getScreen())
-        {
+        bool onTaskBarScreen = false;
+        for (int i = 0; i < taskBars.getCount() && !onTaskBarScreen; ++i) {
+            if (taskBars[i]->getFrame() &&
+                screen == taskBars[i]->getFrame()->getScreen())
+                onTaskBarScreen = true;
+        }
+        if (onTaskBarScreen) {
             manager->getWorkArea(this, &left, &top, &right, &bottom, screen);
         }
         else {
@@ -814,7 +818,7 @@ void YFrameWindow::getNewPos(const XConfigureRequestEvent& cr,
     // update pager when windows move/resize themselves (like xmms, gmplayer, ...),
     // because this does not call YFrameWindow::endMoveSize()
     if (taskBar) {
-        taskBar->workspacesRepaint(getWorkspace());
+        TaskBar::workspacesRepaintAll(getWorkspace());
     }
 }
 
@@ -2011,7 +2015,7 @@ void YFrameWindow::loseWinFocus() {
         }
         updateTaskBar();
         if (taskBar) {
-            taskBar->workspacesRepaint(getWorkspace());
+            TaskBar::workspacesRepaintAll(getWorkspace());
         }
     }
 }
@@ -2034,7 +2038,7 @@ void YFrameWindow::setWinFocus() {
         if (!raiseOnClickClient || raiseOnFocus || !canRaise() || !overlapped())
             container()->releaseButtons();
         if (taskBar) {
-            taskBar->workspacesRepaint(getWorkspace());
+            TaskBar::workspacesRepaintAll(getWorkspace());
         }
     }
 }
@@ -2119,7 +2123,7 @@ bool YFrameWindow::canShow() const {
 
 void YFrameWindow::limitOuterPosition() {
     int ax, ay, ar, ab;
-    if (affectsWorkArea() || client() == taskBar) {
+    if (affectsWorkArea() || TaskBar::isTaskBar(client())) {
         ax = 0; ay = 0; ar = desktop->width(); ab = desktop->height();
     } else {
         manager->getWorkArea(this, &ax, &ay, &ar, &ab);
@@ -2807,7 +2811,7 @@ void YFrameWindow::updateIcon() {
     if (windowList && windowList->visible() && client()->getClientItem())
         client()->getClientItem()->repaint();
     if (taskBar)
-        taskBar->workspacesRepaint(getWorkspace());
+        TaskBar::workspacesRepaintAll(getWorkspace());
 }
 
 // get frame just below this one
@@ -2998,8 +3002,8 @@ void YFrameWindow::setWorkspace(int workspace) {
                 t->getFrame()->setWorkspace(workspace);
         }
         if (taskBar) {
-            taskBar->workspacesRepaint(previous);
-            taskBar->workspacesRepaint(workspace);
+            TaskBar::workspacesRepaintAll(previous);
+            TaskBar::workspacesRepaintAll(workspace);
         }
     }
 }
@@ -3131,7 +3135,7 @@ void YFrameWindow::updateLayer(bool restack) {
 
         if (limitByDockLayer &&
            (newLayer == WinLayerDock || oldLayer == WinLayerDock) &&
-            client() != taskBar)
+            !TaskBar::isTaskBar(client()))
             manager->updateWorkArea();
 
         for (YFrameClient* w = transient(); w; w = w->nextTransient()) {
@@ -3142,7 +3146,7 @@ void YFrameWindow::updateLayer(bool restack) {
         if (restack)
             manager->restackWindows();
         if (taskBar)
-            taskBar->workspacesRepaint(getWorkspace());
+            TaskBar::workspacesRepaintAll(getWorkspace());
     }
 }
 
@@ -3196,7 +3200,7 @@ bool YFrameWindow::doNotCover() const {
 }
 
 bool YFrameWindow::affectsWorkArea() const {
-    return (fHaveStruts || doNotCover()) && client() != taskBar;
+    return (fHaveStruts || doNotCover()) && !TaskBar::isTaskBar(client());
 }
 
 bool YFrameWindow::inWorkArea() const {
@@ -3614,7 +3618,7 @@ void YFrameWindow::setState(int mask, int state) {
     if (flip & WinStateUnmapped) {
         layoutResizeIndicators();
         if (taskBar)
-            taskBar->workspacesRepaint(getWorkspace());
+            TaskBar::workspacesRepaintAll(getWorkspace());
     }
 }
 

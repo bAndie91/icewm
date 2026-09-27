@@ -35,7 +35,16 @@ first when picking this back up.
     - `TaskBarSystemTrayScreen`
     - `TaskBarAddressBarScreen`
   - These all reuse the generic resolver added in Piece 1,
-    `YDesktop::screenFromDescriptor()`.
+    `YDesktop::screenFromDescriptor()`. That resolver already
+    guarantees the fallback-if-missing behavior requested: an
+    out-of-range numeric index, an unmatched/unplugged output name, or
+    XRandR being unavailable all fall through to the `fallback`
+    argument (the primary screen, for these widgets) rather than
+    failing — so a hotplug event that removes the monitor a widget was
+    pinned to will not crash or misplace it, as long as the pref is
+    re-resolved after the monitor set changes rather than cached
+    (something Piece 5's hotplug rebuild needs to do for every
+    per-widget screen pref, not just re-create the bars themselves).
 
 - **D3 — Window-button filtering.** A new, separate bool pref
   `TaskBarWindowsHomeScreenOnly` (default **off** — every bar shows every
@@ -66,10 +75,39 @@ Each piece is sized to be doable in one sitting. Status below.
    on this branch. `taskBar` (singular) remains as a compatibility
    pointer to the primary-screen instance for the ~58 call sites not
    yet updated — those are Piece 2.
-2. **[TODO]** Walk the ~58 `taskBar->` call sites in `wmmgr.cc`,
-   `wmframe.cc`, `decorate.cc`, `movesize.cc`, `amailbox.cc`,
-   `amemstatus.cc`, `apppstatus.cc`, `wmapp.cc`; route each to the
-   primary instance or broadcast to all instances as appropriate.
+2. **[DONE]** Walked every `taskBar->`/`== taskBar`/`!= taskBar` call
+   site in `wmmgr.cc`, `wmframe.cc`, `decorate.cc`, `movesize.cc`,
+   `wmapp.cc` (the applet files `amailbox.cc`/`amemstatus.cc`/
+   `apppstatus.cc` turned out to need no changes — their
+   `MailBoxControl`/`MEMStatus`/etc. classes already store their own
+   `IAppletContainer *taskBar` member from construction, which shadows
+   the global, so they were already correctly scoped per-instance).
+   Two new families of static broadcast helpers on `TaskBar`:
+   - `*All()` (workspacesRepaint, workspacesUpdateButtons,
+     workspacesRelabelButtons, setWorkspaceActive, updateFullscreen,
+     relayout, relayoutNow, refresh, updateLocation, initToolbar,
+     handleCollapseButton) — loop over `taskBars`, used for
+     everything that's either a replicated widget (pager, toolbar,
+     collapse) or a whole-desktop lifecycle event (screen change,
+     idle relayout, theme refresh).
+   - `whichTaskBar(client)` / `isTaskBar(client)` — replaces the old
+     `client() == taskBar` / `!= taskBar` identity checks (14 sites)
+     used to exclude the taskbar's own window from focus, raise,
+     fullscreen, work-area-affecting, etc. logic. Now checks
+     membership in `taskBars` instead of identity with the one
+     global.
+   - The `restackWindows()` edge-trigger append and the
+     `doNotCover()`/hidden check in the work-area strut loop
+     (wmmgr.cc) were generalized to consider every instance.
+   - Left deliberately on the single compat `taskBar` pointer (not
+     broadcast): task/tray button management
+     (`addTasksApp`/`addTrayApp`/`relayoutTasks`/`relayoutTray`/
+     `updateFrame`/`delistFrame` in wmframe.cc) and singleton-widget
+     actions (systray, keyboard indicator, address bar, start-menu/
+     window-list-menu hotkey popups, pager prev/next-workspace
+     actions) — these still only have real content on one instance
+     until Pieces 3/4, so routing them further now would be premature.
+   - Builds clean, no new warnings.
 3. **[TODO]** D2: implement the replicate/singleton applet split in
    `TaskBar::initApplets()`/`initToolbar()`, plus the 8 per-widget
    `*Screen` preferences.
@@ -79,7 +117,17 @@ Each piece is sized to be doable in one sitting. Status below.
 5. **[TODO]** D5: hotplug — rebuild `TaskBar` set on monitor
    add/remove.
 6. **[TODO]** D4: per-monitor strut reservation + workarea calc in
-   `wmmgr.cc`.
+   `wmmgr.cc`. Note from investigating Piece 2: `YWindowManager`'s
+   workarea recompute (`updateWorkArea()`/the loop over
+   `topLayer()` frames checking `w->haveStruts()`) is **already
+   generic per-frame and per-screen** — `fWorkArea` is already
+   indexed `[workspace][screen]`, and any window with struts
+   contributes to its own screen's entry via `w->getScreen()`. This
+   piece may mostly be "make sure each `TaskBar` instance
+   independently sets its own strut hint via its own geometry" rather
+   than reworking the workarea math itself — check how/where `TaskBar`
+   currently calls `setNetWorkArea`/strut-setting before assuming this
+   needs the full rework originally scoped.
 7. **[TODO]** Docs (`man/icewm-preferences.5`), `NEWS` entry, manual QA
    pass (hotplug, drag-across-monitors, restart, single-monitor
    fallback).

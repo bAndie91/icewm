@@ -1131,9 +1131,9 @@ void YWMApp::actionPerformed(YAction action, unsigned int /*modifiers*/) {
             }
         }
     } else if (action == actionCollapseTaskbar && taskBar) {
-        taskBar->handleCollapseButton();
+        TaskBar::handleCollapseButtonAll();
     } else if (action == actionToolbar && taskBar) {
-        taskBar->initToolbar();
+        TaskBar::initToolbarAll();
     } else {
         for (int w = 0; w < workspaceCount; w++) {
             if (workspaceActionActivate[w] == action) {
@@ -1654,7 +1654,7 @@ bool YWMApp::handleIdle() {
         splashTimer = null;
     }
     else if (taskBar) {
-        taskBar->relayoutNow();
+        TaskBar::relayoutNowAll();
     }
     return busy;
 }

@@ -807,7 +807,7 @@ void YFrameWindow::constrainMouseToWorkspace(int &x, int &y) {
 }
 
 bool YFrameWindow::canFullscreen() const {
-    return client() != taskBar;
+    return !TaskBar::isTaskBar(client());
 }
 
 bool YFrameWindow::canSize(bool horiz, bool vert) {
@@ -970,7 +970,7 @@ void YFrameWindow::endMoveSize() {
     }
 
     if (taskBar) {
-        taskBar->workspacesRepaint(getWorkspace());
+        TaskBar::workspacesRepaintAll(getWorkspace());
     }
     origX = origY = origW = origH = 0;
 }

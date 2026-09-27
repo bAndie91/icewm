@@ -347,7 +347,7 @@ void YFrameWindow::configure(const YRect2& r) {
     if (r.resized()) {
         performLayout();
         if (taskBar)
-            taskBar->workspacesRepaint(getWorkspace());
+            TaskBar::workspacesRepaintAll(getWorkspace());
     }
     if (affectsWorkArea()) {
         manager->updateWorkArea();
@@ -488,7 +488,7 @@ bool YFrameWindow::canRaise(bool ignoreTaskBar) const {
         if (w->visibleNow() || w->visibleOn(getWorkspace())) {
             if (w->isTransientFor(this) == false &&
                 w->isGroupModalFor(this) == false &&
-                (ignoreTaskBar == false || w->client() != taskBar)) {
+                (ignoreTaskBar == false || !TaskBar::isTaskBar(w->client()))) {
                 return true;
             }
         }

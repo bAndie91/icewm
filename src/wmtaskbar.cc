@@ -222,6 +222,68 @@ TaskBar::~TaskBar() {
     MSG(("taskBar delete"));
 }
 
+void TaskBar::workspacesRepaintAll(long workspace) {
+    for (int i = 0; i < taskBars.getCount(); ++i)
+        taskBars[i]->workspacesRepaint(workspace);
+}
+
+void TaskBar::workspacesUpdateButtonsAll() {
+    for (int i = 0; i < taskBars.getCount(); ++i)
+        taskBars[i]->workspacesUpdateButtons();
+}
+
+void TaskBar::workspacesRelabelButtonsAll() {
+    for (int i = 0; i < taskBars.getCount(); ++i)
+        taskBars[i]->workspacesRelabelButtons();
+}
+
+void TaskBar::setWorkspaceActiveAll(long workspace, bool active) {
+    for (int i = 0; i < taskBars.getCount(); ++i)
+        taskBars[i]->setWorkspaceActive(workspace, active);
+}
+
+void TaskBar::updateFullscreenAll() {
+    for (int i = 0; i < taskBars.getCount(); ++i)
+        taskBars[i]->updateFullscreen();
+}
+
+void TaskBar::relayoutAll() {
+    for (int i = 0; i < taskBars.getCount(); ++i)
+        taskBars[i]->relayout();
+}
+
+void TaskBar::relayoutNowAll() {
+    for (int i = 0; i < taskBars.getCount(); ++i)
+        taskBars[i]->relayoutNow();
+}
+
+void TaskBar::refreshAll() {
+    for (int i = 0; i < taskBars.getCount(); ++i)
+        taskBars[i]->refresh();
+}
+
+void TaskBar::updateLocationAll() {
+    for (int i = 0; i < taskBars.getCount(); ++i)
+        taskBars[i]->updateLocation();
+}
+
+void TaskBar::initToolbarAll() {
+    for (int i = 0; i < taskBars.getCount(); ++i)
+        taskBars[i]->initToolbar();
+}
+
+void TaskBar::handleCollapseButtonAll() {
+    for (int i = 0; i < taskBars.getCount(); ++i)
+        taskBars[i]->handleCollapseButton();
+}
+
+TaskBar* TaskBar::whichTaskBar(const YFrameClient* client) {
+    for (int i = 0; i < taskBars.getCount(); ++i)
+        if (static_cast<const YFrameClient*>(taskBars[i]) == client)
+            return taskBars[i];
+    return nullptr;
+}
+
 class TaskBarMenu : public YMenu {
 public:
     void updatePopup() {

@@ -1977,7 +1977,7 @@ void YWindowManager::manageClient(YFrameClient* client, bool mapClient) {
 
     if (doActivate && manualPlacement && isRunning() &&
         client != windowList &&
-        client != taskBar &&
+        !TaskBar::isTaskBar(client) &&
         !frame->owner() &&
         (!client->sizeHints() ||
          !(client->sizeHints()->flags & (USPosition | PPosition))))
@@ -2154,7 +2154,7 @@ YFrameWindow *YWindowManager::getFrameUnderMouse(int workspace) {
         frame->avoidFocus() == false &&
         frame->client()->destroyed() == false &&
         frame->client()->visible() &&
-        frame->client() != taskBar)
+        !TaskBar::isTaskBar(frame->client()))
     {
         return frame;
     }
@@ -2171,7 +2171,7 @@ YFrameWindow *YWindowManager::getLastFocus(bool skipAllWorkspaces, int workspace
             !toFocus->visibleOn(workspace) ||
             toFocus->client()->destroyed() ||
             toFocus->isManaged() == false ||
-            toFocus->client() == taskBar ||
+            TaskBar::isTaskBar(toFocus->client()) ||
             toFocus->avoidFocus())
         {
             toFocus = nullptr;
@@ -2192,7 +2192,7 @@ YFrameWindow *YWindowManager::getLastFocus(bool skipAllWorkspaces, int workspace
                     frame->avoidFocus() == false &&
                     frame->isManaged() &&
                     trans->destroyed() == false &&
-                    trans != taskBar &&
+                    !TaskBar::isTaskBar(trans) &&
                     (frame->getActiveLayer() > toFocus->getActiveLayer() ||
                      (frame->getActiveLayer() == toFocus->getActiveLayer()
                       && frame->isBefore(toFocus)))) {
@@ -2218,11 +2218,11 @@ YFrameWindow *YWindowManager::getLastFocus(bool skipAllWorkspaces, int workspace
                 if (w->avoidFocus() || pass == 2)
                     continue;
                 if ((w->isAllWorkspaces() && w != fFocusWin) || pass == 1) {
-                    if (w->client() != taskBar && toFocus == nullptr)
+                    if (!TaskBar::isTaskBar(w->client()) && toFocus == nullptr)
                         toFocus = w;
                     continue;
                 }
-                if (w->client() == taskBar)
+                if (TaskBar::isTaskBar(w->client()))
                     continue;
                 if (w->isManaged() == false)
                     continue;
@@ -2263,7 +2263,7 @@ void YWindowManager::focusLastWindow() {
     }
 
     YFrameWindow *toFocus = getLastFocus(false);
-    if (toFocus == nullptr || toFocus->client() == taskBar) {
+    if (toFocus == nullptr || TaskBar::isTaskBar(toFocus->client())) {
         focusTopWindow();
     } else {
         if (raiseOnFocus)
@@ -2347,8 +2347,8 @@ void YWindowManager::restackWindows() {
     for (YPopupWindow* p = xapp->popup(); p; p = p->prevPopup())
         w.append(p->handle());
 
-    if (taskBar)
-        w.append(taskBar->edgeTriggerWindow());
+    for (int i = 0; i < taskBars.getCount(); ++i)
+        w.append(taskBars[i]->edgeTriggerWindow());
 
     for (auto edge : edges)
         w.append(edge->handle());
@@ -2387,9 +2387,9 @@ void YWindowManager::restackWindows() {
     XRestackWindows(xapp->display(), &*w, w.getCount());
 
     if (taskBar) {
-        taskBar->workspacesRepaint(activeWorkspace());
-        taskBar->workspacesRepaint(lastWorkspace());
-        taskBar->updateFullscreen();
+        TaskBar::workspacesRepaintAll(activeWorkspace());
+        TaskBar::workspacesRepaintAll(lastWorkspace());
+        TaskBar::updateFullscreenAll();
     }
 }
 
@@ -2587,8 +2587,9 @@ bool YWindowManager::updateWorkAreaInner() {
                 updateArea(ws, s, l, t, r, b);
         }
 
+        TaskBar* wtb = TaskBar::whichTaskBar(w->client());
         if (w->doNotCover()
-            && (w->client() != taskBar || taskBar->hidden() == false))
+            && (wtb == nullptr || wtb->hidden() == false))
         {
             int ws = w->getWorkspace();
             int s = w->getScreen();
@@ -2808,12 +2809,12 @@ void YWindowManager::activateWorkspace(int workspace) {
         lockFocus();
 
         if (taskBar && fActiveWorkspace != WinWorkspaceInvalid) {
-            taskBar->setWorkspaceActive(fActiveWorkspace, false);
+            TaskBar::setWorkspaceActiveAll(fActiveWorkspace, false);
         }
         fLastWorkspace = fActiveWorkspace;
         fActiveWorkspace = workspace;
         if (taskBar) {
-            taskBar->setWorkspaceActive(fActiveWorkspace, true);
+            TaskBar::setWorkspaceActiveAll(fActiveWorkspace, true);
         }
 
         setProperty(_XA_NET_CURRENT_DESKTOP, XA_CARDINAL, fActiveWorkspace);
@@ -2842,8 +2843,8 @@ void YWindowManager::activateWorkspace(int workspace) {
         resetColormap(true);
 
         if (taskBar) {
-            taskBar->relayout();
-            taskBar->relayoutNow();
+            TaskBar::relayoutAll();
+            TaskBar::relayoutNowAll();
         }
 
         if (workspaceSwitchStatus
@@ -2916,8 +2917,8 @@ void YWindowManager::updateWorkspaces(bool increase) {
         setDesktopViewport();
     }
     if (taskBar) {
-        taskBar->workspacesUpdateButtons();
-        taskBar->workspacesRelabelButtons();
+        TaskBar::workspacesUpdateButtonsAll();
+        TaskBar::workspacesRelabelButtonsAll();
     }
     if (windowList) {
         windowList->updateWorkspaces();
@@ -2955,7 +2956,7 @@ void YWindowManager::setShowingDesktop(bool setting) {
 
 void YWindowManager::updateTaskBarNames() {
     if (taskBar) {
-        taskBar->workspacesRelabelButtons();
+        TaskBar::workspacesRelabelButtonsAll();
     }
 }
 
@@ -3438,8 +3439,8 @@ void YWindowManager::switchToWorkspace(int nw, bool takeCurrent) {
             unlockWorkArea();
         }
         if (taskBar && lastWorkspace() != activeWorkspace()) {
-            taskBar->workspacesRepaint(lastWorkspace());
-            taskBar->workspacesRepaint(activeWorkspace());
+            TaskBar::workspacesRepaintAll(lastWorkspace());
+            TaskBar::workspacesRepaintAll(activeWorkspace());
         }
     }
 }
@@ -3930,15 +3931,15 @@ void YWindowManager::updateScreenSize(XEvent *event) {
         }
 
         if (taskBar) {
-            taskBar->updateLocation();
+            TaskBar::updateLocationAll();
         }
         updateWorkArea();
 
         if (taskBar && pagerShowPreview && resize) {
-            taskBar->workspacesUpdateButtons();
+            TaskBar::workspacesUpdateButtonsAll();
         }
         if (taskBar) {
-            taskBar->relayoutNow();
+            TaskBar::relayoutNowAll();
         }
         for (int i = 0; i < edges.getCount(); ++i)
             edges[i]->setGeometry();
@@ -3963,7 +3964,7 @@ void YWindowManager::updateScreenSize(XEvent *event) {
 
 void YWindowManager::refresh() {
     if (taskBar) {
-        taskBar->refresh();
+        TaskBar::refreshAll();
     }
     for (YFrameIter frame(focusedIterator()); ++frame; ) {
         if (frame->visibleNow()) {

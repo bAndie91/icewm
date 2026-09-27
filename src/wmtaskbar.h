@@ -69,6 +69,31 @@ public:
 
     int screen() const { return fScreen; }
 
+    // Is `client` any of our TaskBar instances (as a plain YFrameClient*),
+    // and if so, which one. Replaces the old single-taskbar `client() ==
+    // taskBar` / `!= taskBar` idiom used throughout wmmgr.cc/wmframe.cc.
+    static TaskBar* whichTaskBar(const YFrameClient* client);
+    static bool isTaskBar(const YFrameClient* client) {
+        return whichTaskBar(client) != nullptr;
+    }
+
+    // Broadcast helpers for the widgets that are replicated across every
+    // TaskBar instance (workspace pager, toolbar, collapse) and for
+    // whole-desktop lifecycle events (screen change, idle relayout).
+    // Each is a thin loop over `taskBars`, safe to call even when empty.
+    // See MULTITASKBAR-PLAN.md, Piece 2.
+    static void workspacesRepaintAll(long workspace);
+    static void workspacesUpdateButtonsAll();
+    static void workspacesRelabelButtonsAll();
+    static void setWorkspaceActiveAll(long workspace, bool active);
+    static void updateFullscreenAll();
+    static void relayoutAll();
+    static void relayoutNowAll();
+    static void refreshAll();
+    static void updateLocationAll();
+    static void initToolbarAll();
+    static void handleCollapseButtonAll();
+
 private:
     virtual void paint(Graphics &g, const YRect &r);
     virtual bool handleKey(const XKeyEvent &key);
