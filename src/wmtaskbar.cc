@@ -876,18 +876,31 @@ void TaskBar::updateWMHints() {
         YRect geo = desktop->getScreenGeometry(fScreen);
         if (y() + height() == geo.y() + geo.height()) {
             strut.bottom = Atom(height());
+            strut.bottom_start_x = Atom(geo.x());
+            strut.bottom_end_x = Atom(geo.x() + geo.width() - 1);
         }
         else if (y() == geo.y()) {
             strut.top = Atom(height());
+            strut.top_start_x = Atom(geo.x());
+            strut.top_end_x = Atom(geo.x() + geo.width() - 1);
         }
     }
     if (fStrut != strut) {
         fStrut = strut;
         MSG(("SET NET WM STRUT"));
-        if (*strut)
+        if (*strut) {
             setProperty(_XA_NET_WM_STRUT, XA_CARDINAL, &strut, 4);
-        else
+            Atom partial[12] = {
+                strut.left, strut.right, strut.top, strut.bottom,
+                0, 0, 0, 0,
+                strut.top_start_x, strut.top_end_x,
+                strut.bottom_start_x, strut.bottom_end_x,
+            };
+            setProperty(_XA_NET_WM_STRUT_PARTIAL, XA_CARDINAL, partial, 12);
+        } else {
             deleteProperty(_XA_NET_WM_STRUT);
+            deleteProperty(_XA_NET_WM_STRUT_PARTIAL);
+        }
     }
 }
 

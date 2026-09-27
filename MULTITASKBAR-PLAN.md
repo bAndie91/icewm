@@ -146,18 +146,39 @@ Each piece is sized to be doable in one sitting. Status below.
    `taskBars` itself is rebuilt rather than just extended.
 5. **[TODO]** D5: hotplug — rebuild `TaskBar` set on monitor
    add/remove.
-6. **[TODO]** D4: per-monitor strut reservation + workarea calc in
-   `wmmgr.cc`. Note from investigating Piece 2: `YWindowManager`'s
-   workarea recompute (`updateWorkArea()`/the loop over
-   `topLayer()` frames checking `w->haveStruts()`) is **already
-   generic per-frame and per-screen** — `fWorkArea` is already
-   indexed `[workspace][screen]`, and any window with struts
-   contributes to its own screen's entry via `w->getScreen()`. This
-   piece may mostly be "make sure each `TaskBar` instance
-   independently sets its own strut hint via its own geometry" rather
-   than reworking the workarea math itself — check how/where `TaskBar`
-   currently calls `setNetWorkArea`/strut-setting before assuming this
-   needs the full rework originally scoped.
+6. **[DONE]** D4: turned out to need almost no new logic. Confirmed by
+   code reading (no multi-monitor test rig available in the sandbox
+   this was built in, so this is verified by inspection, not runtime
+   testing -- worth a real hotplug/multi-monitor smoke test in Piece 7):
+   - `TaskBar::updateWMHints()` already computed its strut from
+     `desktop->getScreenGeometry(fScreen)` -- it was one of the three
+     call sites Piece 1 already fixed to be screen-aware, before this
+     piece even started.
+   - `YWindowManager::updateWorkAreaInner()` already attributes every
+     window's strut to `w->getScreen()`'s own monitor bounds
+     (`xiInfo[s]`), not the whole virtual desktop -- so multiple
+     `TaskBar` instances, each correctly positioned per Piece 1, were
+     already reserving space only on their own screen with zero
+     changes needed here.
+   - The one real gap: `updateWMHints()` only published the plain
+     `_NET_WM_STRUT` (4 values: left/right/top/bottom), which by EWMH
+     spec reserves that margin across the *entire* edge of the desktop,
+     not just one monitor's segment of it. Harmless for icewm's own
+     placement (which ignores the interval fields and uses
+     `getScreen()` instead, confirmed by reading
+     `YFrameWindow::updateNetWMStrutPartial()` -- it only extracts
+     left/right/top/bottom, discarding the start/end interval), but
+     wrong for any *external* EWMH-reading tool. Fixed by also
+     publishing `_NET_WM_STRUT_PARTIAL` with `top_start_x`/`top_end_x`
+     or `bottom_start_x`/`bottom_end_x` scoped to the bar's own screen
+     geometry.
+   - Known residual limitation, pre-existing and out of scope here:
+     `_NET_WORKAREA` (the property icewm exports summarizing the
+     workarea for *other* clients) is a single rect per workspace, not
+     per-monitor -- external tools relying on that property alone
+     won't see the per-monitor split icewm's own internal logic uses.
+     This isn't new; it's the same limitation any Xinerama-era
+     multi-monitor icewm setup already had, unrelated to multi-taskbar.
 7. **[TODO]** Docs (`man/icewm-preferences.5`), `NEWS` entry, manual QA
    pass (hotplug, drag-across-monitors, restart, single-monitor
    fallback).

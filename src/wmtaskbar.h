@@ -223,10 +223,24 @@ private:
     class YStrut {
     public:
         Atom left, right, top, bottom;
-        YStrut() : left(0), right(0), top(0), bottom(0) { }
+        // _NET_WM_STRUT_PARTIAL's extra reach-along-the-edge fields, so a
+        // bar on one monitor doesn't claim margin along the whole virtual
+        // desktop width/height for external (non-icewm) EWMH readers.
+        // icewm's own workarea calc already scopes struts per-screen via
+        // YFrameWindow::getScreen() regardless of these (see
+        // MULTITASKBAR-PLAN.md, Piece 6), but setting them properly keeps
+        // the advertised property correct for other tools too.
+        Atom top_start_x, top_end_x, bottom_start_x, bottom_end_x;
+        YStrut() : left(0), right(0), top(0), bottom(0),
+                   top_start_x(0), top_end_x(0),
+                   bottom_start_x(0), bottom_end_x(0) { }
         bool operator!=(const YStrut& s) const {
             return left != s.left || right != s.right
-                || top != s.top || bottom != s.bottom;
+                || top != s.top || bottom != s.bottom
+                || top_start_x != s.top_start_x
+                || top_end_x != s.top_end_x
+                || bottom_start_x != s.bottom_start_x
+                || bottom_end_x != s.bottom_end_x;
         }
         const Atom* operator&() const { return &left; }
         bool operator*() const { return left | right | top | bottom; }
