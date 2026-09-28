@@ -293,9 +293,7 @@ bool YWindowManager::handleTimer(YTimer* timer) {
     }
     if (timer == fLayoutTimer) {
         fLayoutTimer = null;
-        if (taskBar) {
-            taskBar->keyboardUpdate(null);
-        }
+        TaskBar::keyboardUpdateAll(null);
     }
     if (timer == fUpdateTimer) {
         updateClientList();
@@ -584,7 +582,7 @@ bool YWindowManager::handleWMKey(const XKeyEvent& key, bool repeating) {
     } else if (gKeySysAddressBar == key) {
         XAllowEvents(xapp->display(), AsyncKeyboard, key.time);
         if (taskBar) {
-            taskBar->showAddressBar();
+            TaskBar::showAddressBarOnHost();
             return true;
         }
     } else if (gKeySysShowDesktop == key) {
@@ -1366,8 +1364,7 @@ void YWindowManager::manageClients() {
 void YWindowManager::unmanageClients() {
     setWmState(wmSHUTDOWN);
     lockWorkArea();
-    if (taskBar)
-        taskBar->detachDesktopTray();
+    TaskBar::detachDesktopTrayAll();
     setFocus(nullptr);
 
     YArray<Atom> tabbed;
@@ -1852,7 +1849,7 @@ YFrameClient* YWindowManager::allocateClient(Window win, bool mapClient) {
                                   attributes.visual,
                                   attributes.colormap);
         if (client && client->isKdeTrayWindow()) {
-            if (taskBar && taskBar->windowTrayRequestDock(win)) {
+            if (TaskBar::windowTrayRequestDockAny(win)) {
                 delete client; client = nullptr;
             }
         }
@@ -3720,9 +3717,7 @@ void YWindowManager::setKeyboard(mstring keyboard) {
         if (path) {
             mstring cmdline(path, " ", keyboard);
             wmapp->runCommand(cmdline);
-            if (taskBar) {
-                taskBar->keyboardUpdate(keyboard);
-            }
+            TaskBar::keyboardUpdateAll(keyboard);
         }
         else if (ONCE) {
             new YMsgBox(YMsgBox::mbOK,

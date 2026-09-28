@@ -102,6 +102,14 @@ public:
     static void initToolbarAll();
     static void handleCollapseButtonAll();
 
+    // Singleton applets live on whichever bar hosts them (see
+    // hostsSingleton()), which need not be the primary one, so actions
+    // aimed at them must find the host instead of using `taskBar`.
+    static void keyboardUpdateAll(mstring keyboard);
+    static void showAddressBarOnHost();
+    static void detachDesktopTrayAll();
+    static bool windowTrayRequestDockAny(Window w);
+
 private:
     virtual void paint(Graphics &g, const YRect &r);
     virtual bool handleKey(const XKeyEvent &key);

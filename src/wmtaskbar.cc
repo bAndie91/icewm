@@ -277,6 +277,34 @@ void TaskBar::handleCollapseButtonAll() {
         taskBars[i]->handleCollapseButton();
 }
 
+void TaskBar::keyboardUpdateAll(mstring keyboard) {
+    for (int i = 0; i < taskBars.getCount(); ++i)
+        taskBars[i]->keyboardUpdate(keyboard);
+}
+
+void TaskBar::showAddressBarOnHost() {
+    TaskBar* host = nullptr;
+    for (int i = 0; i < taskBars.getCount() && !host; ++i)
+        if (taskBars[i]->fAddressBar)
+            host = taskBars[i];
+    if (host == nullptr)
+        host = taskBar;
+    if (host)
+        host->showAddressBar();
+}
+
+void TaskBar::detachDesktopTrayAll() {
+    for (int i = 0; i < taskBars.getCount(); ++i)
+        taskBars[i]->detachDesktopTray();
+}
+
+bool TaskBar::windowTrayRequestDockAny(Window w) {
+    for (int i = 0; i < taskBars.getCount(); ++i)
+        if (taskBars[i]->windowTrayRequestDock(w))
+            return true;
+    return false;
+}
+
 TaskBar* TaskBar::whichTaskBar(const YFrameClient* client) {
     for (int i = 0; i < taskBars.getCount(); ++i)
         if (static_cast<const YFrameClient*>(taskBars[i]) == client)
