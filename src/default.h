@@ -72,6 +72,7 @@ XIV(bool, pagerShowMinimized,                   true)
 XIV(bool, pagerShowBorders,                     true)
 XIV(bool, pagerShowLabels,                      true)
 XIV(bool, pagerShowNumbers,                     false)
+XIV(bool, taskBarShowKeyboard,                  true)
 XIV(bool, taskBarShowCPUStatus,                 true)
 XIV(bool, cpustatusShowRamUsage,                true)
 XIV(bool, cpustatusShowSwapUsage,               true)
@@ -180,6 +181,7 @@ XSV(const char *, mailBoxPath,                  0)
 XSV(const char *, mailCommand,                  TERM " -name mutt -e mutt")
 XSV(const char *, mailClassHint,                "mutt.XTerm")
 XSV(const char *, newMailCommand,               0)
+XSV(const char *, keyboardCommand,              "setxkbmap")
 XSV(const char *, lockCommand,                  0)
 XSV(const char *, clockCommand,                 "xclock -name icewm -title Clock")
 XSV(const char *, clockClassHint,               "icewm.XClock")
@@ -345,6 +347,7 @@ cfoption icewm_preferences[] = {
     OBV("TaskBarShowStartMenu",                 &taskBarShowStartMenu,          "Show 'Start' menu on task bar"),
     OBV("TaskBarShowWindowListMenu",            &taskBarShowWindowListMenu,     "Show 'window list' menu on task bar"),
     OBV("TaskBarShowCPUStatus",                 &taskBarShowCPUStatus,          "Show CPU status on task bar"),
+    OBV("TaskBarShowKeyboard",                  &taskBarShowKeyboard,           "Show keyboard layout indicator on task bar"),
     OBV("CPUStatusShowRamUsage",                &cpustatusShowRamUsage,         "Show RAM usage in CPU status tool tip"),
     OBV("CPUStatusShowSwapUsage",               &cpustatusShowSwapUsage,        "Show swap usage in CPU status tool tip"),
     OBV("CPUStatusShowAcpiTemp",                &cpustatusShowAcpiTemp,         "Show ACPI temperature in CPU status tool tip"),
@@ -452,6 +455,7 @@ cfoption icewm_preferences[] = {
     OSV("IconThemes",                           &iconThemes,                    "Colon separated icon theme list with wildcard support. Minus prefix - can be used to exclude themes."),
     OSV("MailBoxPath",                          &mailBoxPath,                   "Paths of mailboxes separated by a space, otherwise $MAILPATH or $MAIL is used"),
     OSV("MailCommand",                          &mailCommand,                   "Command to run on mailbox"),
+    OSV("KeyboardCommand",                      &keyboardCommand,               "Command to run when switching keyboard layouts"),
     OSV("MailClassHint",                        &mailClassHint,                 "WM_CLASS to allow runonce for MailCommand"),
     OSV("NewMailCommand",                       &newMailCommand,                "Command to run when new mail arrives"),
     OSV("LockCommand",                          &lockCommand,                   "Command to lock display/screensaver"),

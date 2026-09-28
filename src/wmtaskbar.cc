@@ -471,7 +471,7 @@ void TaskBar::initApplets() {
     } else
         fMailBoxControl = nullptr;
 
-    if (configKeyboards.nonempty() && hostsSingleton(taskBarKeyboardScreen)) {
+    if (taskBarShowKeyboard && configKeyboards.nonempty() && hostsSingleton(taskBarKeyboardScreen)) {
         fKeyboardStatus = new KeyboardStatus(app, this, this);
     } else
         fKeyboardStatus = nullptr;

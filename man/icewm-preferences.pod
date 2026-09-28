@@ -529,6 +529,10 @@ Show 'window list' menu on task bar.
 
 Show CPU status on task bar (Linux & Solaris).
 
+=item B<TaskBarShowKeyboard>=1
+
+Show the keyboard layout indicator on task bar.
+
 =item B<CPUStatusShowRamUsage>=1
 
 Show RAM usage in CPU status tool tip.
@@ -776,9 +780,8 @@ Monitor for the address bar; see B<TaskBarMailboxScreen>.
 A comma-separated list of keyboard layouts.
 A layout may be enclosed in double quotes.
 Each layout is a name with optional arguments,
-that is to be parsed by the C<setxkbmap> program.
-To support changing keyboard layouts, the
-C<setxkbmap> program must be installed.
+that is passed to the C<KeyboardCommand> command.
+By default C<KeyboardCommand> is C<setxkbmap>.
 The first in the list is the default layout.
 Programs may have their own keyboard layout
 defined in the F<winoptions> file.
@@ -1034,6 +1037,11 @@ If this is empty, $MAILPATH or $MAIL is used instead.
 =head2 PROGRAMS
 
 =over
+
+=item B<KeyboardCommand>="setxkbmap"
+
+Command to run when switching keyboard layouts.
+The selected layout is appended as the last argument.
 
 =item B<MailCommand>="xterm -name mutt -e mutt"
 

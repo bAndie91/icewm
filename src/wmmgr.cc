@@ -3712,18 +3712,10 @@ void YWindowManager::setKeyboard(int configIndex) {
 void YWindowManager::setKeyboard(mstring keyboard) {
     if (keyboard != null && keyboard != fCurrentKeyboard) {
         fCurrentKeyboard = keyboard;
-        char program[] = "setxkbmap";
-        csmart path(path_lookup(program));
-        if (path) {
-            mstring cmdline(path, " ", keyboard);
+        if (nonempty(keyboardCommand)) {
+            mstring cmdline(keyboardCommand, " ", keyboard);
             wmapp->runCommand(cmdline);
             TaskBar::keyboardUpdateAll(keyboard);
-        }
-        else if (ONCE) {
-            new YMsgBox(YMsgBox::mbOK,
-                        _("Missing program setxkbmap"),
-                        _("For keyboard switching, please install setxkbmap."),
-                        this, "key");
         }
     }
 }
