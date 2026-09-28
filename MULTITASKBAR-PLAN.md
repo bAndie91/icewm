@@ -142,10 +142,29 @@ Each piece is sized to be doable in one sitting. Status below.
    state across instances, so multiple independent `TaskPane`s each
    holding their own button for the same frame is safe. Builds clean.
    Caveat noted in code comments: the parallel arrays only grow for
-   now; Piece 5's hotplug rebuild will need to reconcile them when
-   `taskBars` itself is rebuilt rather than just extended.
-5. **[TODO]** D5: hotplug — rebuild `TaskBar` set on monitor
-   add/remove.
+   now; Piece 5's hotplug rebuild reconciles them (done, below).
+5. **[DONE]** D5: hotplug. `YWMApp::rebuildTaskBarsIfNeeded()`, called
+   from `YWindowManager::updateScreenSize()` after the monitor info is
+   refreshed. Rather than rebuilding on every RandR event, each bar set
+   records a *signature* at creation (`TaskBar::recordSignature()`: bar
+   count, primary screen index, and the screen each of the 8 pinned
+   singleton prefs resolved to) and `needsRebuild()` recomputes it. Same
+   layout (e.g. only a resolution change) -> just `updateLocationAll()`
+   as before, so the system tray etc. aren't disturbed; different ->
+   full teardown and recreate. The signature includes the primary index
+   because a single bar is now bound to a screen *index* (Piece 1) and
+   would otherwise stay on a stale index when hotplug shifts it.
+   Because the signature re-resolves every `*Screen` pref each time, a
+   widget pinned to a monitor that's absent falls back to primary and
+   **moves back when that monitor returns** (verified).
+   Teardown order matters and is the reason for the care here: (1)
+   `removeAppStatus()` on every frame, so no frame keeps a button
+   pointer into a pane about to die (this also resolves the "parallel
+   arrays only grow" caveat from Piece 4); (2) for each bar,
+   `frame->unmanage(); delete frame;` — the bar is a managed client of
+   its own `TaskBarFrame`, and `~YFrameWindow` would otherwise `delete`
+   the bar itself (shutdown does the same dance); (3) `delete bar`;
+   (4) `createTaskBar()`, which re-adds buttons via `updateAppStatus()`.
 6. **[DONE]** D4: turned out to need almost no new logic. Confirmed by
    code reading (no multi-monitor test rig available in the sandbox
    this was built in, so this is verified by inspection, not runtime
@@ -179,9 +198,47 @@ Each piece is sized to be doable in one sitting. Status below.
      won't see the per-monitor split icewm's own internal logic uses.
      This isn't new; it's the same limitation any Xinerama-era
      multi-monitor icewm setup already had, unrelated to multi-taskbar.
-7. **[TODO]** Docs (`man/icewm-preferences.5`), `NEWS` entry, manual QA
-   pass (hotplug, drag-across-monitors, restart, single-monitor
-   fallback).
+7. **[TODO]** `NEWS` entry, and a pass on real multi-monitor hardware
+   (see "Testing" below for what has and hasn't been exercised). The
+   man page (`man/icewm-preferences.pod`) is already updated for every
+   preference.
+
+## Follow-ups after Piece 4 (found by testing / review)
+
+- **Segfault (`745adb5`, fixed by the maintainer):** `updateLayout()`
+  dereferenced `fMailBoxControl`/`fCPUStatus`/`fNetStatus` when the
+  *pref* was on, but Piece 3 made construction also depend on
+  `hostsSingleton()`, so a bar not hosting the widget had a null
+  pointer. Root cause was Piece 3 (`0451368`), not Piece 4. Reproduced
+  under the test harness (kernel log showed a null-field read) and
+  confirmed fixed. Lesson: gate on the pointer, not the pref.
+- **Singleton actions routed to the wrong bar:** the same Piece 3
+  change silently broke keyboard-layout updates, the address-bar hotkey
+  and system-tray docking whenever the widget was pinned off the
+  primary bar (they still went through the compat `taskBar`).
+  Fixed with `keyboardUpdateAll()`, `showAddressBarOnHost()`,
+  `detachDesktopTrayAll()`, `windowTrayRequestDockAny()`.
+- **Buttons follow windows across monitors** (with
+  `TaskBarWindowsHomeScreenOnly`): the maintainer's `07939a8` does this
+  from `moveWindow()` (interactive drags) via the deferred
+  `updateTaskBar()` queue. `YFrameWindow::configure()` now does the same
+  for *every* geometry change (client-requested moves, keyboard,
+  maximize/tile) using the same deferred path, tracking the routed
+  screen in `fHomeScreen`. The two are compatible; `07939a8` is now
+  redundant for the common case but harmless and can stay or go.
+
+## Testing
+
+Builds clean with CMake. Exercised at runtime under Xvfb with synthetic
+monitors (`contrib/multitaskbar-test/`, a test-only patch — never ship
+it): multi-bar startup, per-bar `_NET_WM_STRUT_PARTIAL`, singleton
+widgets pinned to non-primary and to non-existent monitors (fall back to
+primary), default vs home-screen-only task buttons, buttons following a
+client-requested move, and 10 rapid hotplug cycles (1-3 monitors) with
+pinned widgets and open windows. **Not** exercised: real RandR
+hardware, interactive titlebar drags (my synthetic drag missed the
+titlebar), a docked tray icon surviving a rebuild, open menus/popups
+during a hotplug, and per-monitor DPI.
 
 ## Build notes
 

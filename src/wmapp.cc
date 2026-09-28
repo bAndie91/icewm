@@ -2026,10 +2026,35 @@ void YWMApp::createTaskBar() {
             int s = taskBarShowOnAllMonitors ? screen : xineramaPrimaryScreen;
             new TaskBar(this, desktop, this, this, s);
         }
+        TaskBar::recordSignature();
         for (YFrameIter frame = manager->focusedIterator(); ++frame; ) {
             frame->updateAppStatus();
         }
     }
+}
+
+bool YWMApp::rebuildTaskBarsIfNeeded() {
+    if (!showTaskBar || taskBars.isEmpty() || !TaskBar::needsRebuild())
+        return false;
+
+    // Task/tray buttons belong to the bars' panes, so take them off every
+    // frame first; createTaskBar() re-adds them for the new bars.
+    for (YFrameIter frame = manager->focusedIterator(); ++frame; )
+        frame->removeAppStatus();
+
+    // A bar is a managed client inside its own TaskBarFrame; unmanage the
+    // frame first (as at shutdown) so deleting it doesn't delete the bar
+    // out from under us.
+    while (taskBars.nonempty()) {
+        TaskBar* bar = taskBars[0];
+        if (YFrameWindow* frame = bar->getFrame()) {
+            frame->unmanage();
+            delete frame;
+        }
+        delete bar; // ~TaskBar() removes itself from taskBars
+    }
+    createTaskBar();
+    return true;
 }
 
 void YWMApp::doLogout(RebootShutdown reboot) {

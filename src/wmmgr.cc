@@ -3925,7 +3925,7 @@ void YWindowManager::updateScreenSize(XEvent *event) {
             setDesktopGeometry();
         }
 
-        if (taskBar) {
+        if (taskBar && !wmapp->rebuildTaskBarsIfNeeded()) {
             TaskBar::updateLocationAll();
         }
         updateWorkArea();

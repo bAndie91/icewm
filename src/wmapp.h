@@ -109,6 +109,9 @@ public:
     void subdirs(const char* subdir, bool themeOnly, MStringArray& paths);
     void unregisterProtocols();
     void refreshDesktop();
+    // After a monitor change: rebuild the taskbar set if the monitor layout
+    // changed in a way the existing bars can't just be repositioned for.
+    bool rebuildTaskBarsIfNeeded();
 
 private:
     char** mainArgv;

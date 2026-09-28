@@ -110,6 +110,16 @@ public:
     static void detachDesktopTrayAll();
     static bool windowTrayRequestDockAny(Window w);
 
+    // Hotplug support (Piece 5). The bars are created for a particular
+    // monitor layout: how many bars, which screen is primary, and which
+    // screen each pinned singleton applet resolved to. recordSignature()
+    // snapshots that after creation; needsRebuild() recomputes it against
+    // the current monitors and says whether the bar set must be rebuilt
+    // (a mere resolution change with the same layout only needs the bars
+    // repositioned, which keeps e.g. the system tray undisturbed).
+    static void recordSignature();
+    static bool needsRebuild();
+
 private:
     virtual void paint(Graphics &g, const YRect &r);
     virtual bool handleKey(const XKeyEvent &key);

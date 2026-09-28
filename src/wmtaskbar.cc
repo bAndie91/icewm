@@ -312,6 +312,40 @@ TaskBar* TaskBar::whichTaskBar(const YFrameClient* client) {
     return nullptr;
 }
 
+static void computeTaskBarSignature(YArray<int>& sig) {
+    const int primary = xineramaPrimaryScreen;
+    sig.append(taskBarShowOnAllMonitors ? desktop->getScreenCount() : 1);
+    sig.append(primary);
+    if (taskBarShowOnAllMonitors) {
+        const char* prefs[] = {
+            taskBarMailboxScreen, taskBarCPUStatusScreen,
+            taskBarMEMStatusScreen, taskBarNetStatusScreen,
+            taskBarAPMScreen, taskBarKeyboardScreen,
+            taskBarSystemTrayScreen, taskBarAddressBarScreen,
+        };
+        for (const char* pref : prefs)
+            sig.append(desktop->screenFromDescriptor(pref, primary));
+    }
+}
+
+static YArray<int> taskBarSignature;
+
+void TaskBar::recordSignature() {
+    taskBarSignature.clear();
+    computeTaskBarSignature(taskBarSignature);
+}
+
+bool TaskBar::needsRebuild() {
+    YArray<int> now;
+    computeTaskBarSignature(now);
+    if (now.getCount() != taskBarSignature.getCount())
+        return true;
+    for (int i = 0; i < now.getCount(); ++i)
+        if (now[i] != taskBarSignature[i])
+            return true;
+    return false;
+}
+
 bool TaskBar::hostsSingleton(const char* screenPref) const {
     if (!taskBarShowOnAllMonitors)
         return true;
