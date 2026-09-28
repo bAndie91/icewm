@@ -355,10 +355,18 @@ void YFrameWindow::configure(const YRect2& r) {
     }
     // Follow the window across monitors: when task buttons are restricted
     // to the home screen, re-route them once its largest-overlap monitor
-    // changes (cheap check; only acts on an actual screen change).
+    // changes. Deferred through the bars' update queue (as moveWindow()
+    // does for interactive drags) so button churn is batched, and this
+    // also covers moves that don't come from a drag: client-requested,
+    // keyboard, maximize/tile, ...
     if (taskBarWindowsHomeScreenOnly && fManaged && taskBars.getCount() > 1 &&
-        (r.moved() || r.resized()) && getScreen() != fHomeScreen)
-        updateAppStatus();
+        (r.moved() || r.resized())) {
+        int screen = getScreen();
+        if (screen != fHomeScreen) {
+            fHomeScreen = screen;
+            updateTaskBar();
+        }
+    }
 }
 
 void YFrameWindow::performLayout()
