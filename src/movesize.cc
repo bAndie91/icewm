@@ -4,6 +4,7 @@
  * Copyright (C) 1997-2002 Marko Macek
  */
 #include "config.h"
+#include "yprefs.h"
 #include "wmframe.h"
 #include "wmcontainer.h"
 #include "wmmgr.h"
@@ -1033,6 +1034,8 @@ bool YFrameWindow::handleBeginDrag(const XButtonEvent &down, const XMotionEvent 
 }
 
 void YFrameWindow::moveWindow(int newX, int newY) {
+    const int oldScreen = taskBarWindowsHomeScreenOnly ? getScreen() : -1;
+    
     if (opaqueMove)
         drawMoveSizeFX(x(), y(), width(), height());
 
@@ -1040,7 +1043,9 @@ void YFrameWindow::moveWindow(int newX, int newY) {
 
     if (opaqueMove)
         drawMoveSizeFX(x(), y(), width(), height());
-
+    
+    if (oldScreen != -1 && oldScreen != getScreen()) updateTaskBar();
+    
     statusMoveSize->setStatus(this);
 }
 
