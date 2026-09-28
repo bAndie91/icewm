@@ -15,6 +15,7 @@
 #include "ymenuitem.h"
 #include "yrect.h"
 #include "prefs.h"
+#include "yprefs.h"
 #include "intl.h"
 
 void YFrameWindow::updateMenu() {
@@ -352,6 +353,12 @@ void YFrameWindow::configure(const YRect2& r) {
     if (affectsWorkArea()) {
         manager->updateWorkArea();
     }
+    // Follow the window across monitors: when task buttons are restricted
+    // to the home screen, re-route them once its largest-overlap monitor
+    // changes (cheap check; only acts on an actual screen change).
+    if (taskBarWindowsHomeScreenOnly && fManaged && taskBars.getCount() > 1 &&
+        (r.moved() || r.resized()) && getScreen() != fHomeScreen)
+        updateAppStatus();
 }
 
 void YFrameWindow::performLayout()

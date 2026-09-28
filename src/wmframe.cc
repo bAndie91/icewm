@@ -70,6 +70,7 @@ YFrameWindow::YFrameWindow(
     topRight(None),
     bottomLeft(None),
     bottomRight(None),
+    fHomeScreen(-1),
     fMiniIcon(nullptr),
     fFrameIcon(null),
     fTabs(1),
@@ -3759,6 +3760,7 @@ void YFrameWindow::updateAppStatus() {
     // When it's on, only the bar whose screen matches this frame's own
     // getScreen() (largest-overlap monitor) gets a button.
     int home = taskBarWindowsHomeScreenOnly ? getScreen() : -1;
+    fHomeScreen = home;
 
     for (int i = 0; i < taskBars.getCount(); ++i) {
         TaskBar* tb = taskBars[i];

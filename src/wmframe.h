@@ -462,6 +462,9 @@ private:
     // TaskBarWindowsHomeScreenOnly restricts it to its home screen.
     YArray<TaskBarApp*> fTaskBarApps;
     YArray<TrayApp*> fTrayApps;
+    // Screen this frame's task buttons were last routed for (-1: not
+    // routed by screen); lets configure() re-route when it changes monitor.
+    int fHomeScreen;
     MiniIcon *fMiniIcon;
     ref<YIcon> fFrameIcon;
     lazy<YTimer> fFocusEventTimer;
