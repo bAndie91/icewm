@@ -314,6 +314,15 @@ if(CONFIG_XRANDR)
     ENDIF()
 endif()
 
+option(CONFIG_XINPUT2 "Define to enable XInput2 raw-event tracking (keyboard vs. pointer activity, used by NewWindowScreenPolicy)" on)
+if(CONFIG_XINPUT2)
+    pkg_check_modules(xi xi>=1.2)
+    IF(NOT xi_FOUND)
+        message(WARNING "Xi library not found, disabling CONFIG_XINPUT2")
+        set(CONFIG_XINPUT2 off)
+    ENDIF()
+endif()
+
 option(HAVE_XRES "Define to enable XRes support" on)
 if(HAVE_XRES)
     pkg_check_modules(xres xres>=1.2)
@@ -430,7 +439,7 @@ set(icewm_pc_flags ${CXXFLAGS_COMMON} ${fontconfig_CFLAGS} ${xft_CFLAGS}
                    ${librsvg_CFLAGS} ${pixbuf_CFLAGS} ${libimlib2_CFLAGS}
                    ${libpng_CFLAGS} ${libxpm_CFLAGS} ${xrender_CFLAGS}
                    ${xrandr_CFLAGS} ${xinerama_CFLAGS} ${xext_CFLAGS}
-                   ${xres_CFLAGS} ${x11_CFLAGS} ${fribidi_CFLAGS} ${nls_CFLAGS})
+                   ${xres_CFLAGS} ${xi_CFLAGS} ${x11_CFLAGS} ${fribidi_CFLAGS} ${nls_CFLAGS})
 
 SET(ICE_COMMON_SRCS udir.cc upath.cc yapp.cc yxapp.cc ytimer.cc yprefs.cc
                     ywindow.cc ypaint.cc ypopup.cc ycursor.cc ysocket.cc
@@ -480,7 +489,7 @@ do_auto_inc_headers(ICEWM_SRCS)
 concat_dedup(icewm_libs itk ice ${sm_LIBS} ${fontconfig_LDFLAGS}
              ${fribidi_LDFLAGS} ${xft_LDFLAGS} ${xrandr_LDFLAGS}
              ${xinerama_LDFLAGS} ${xres_LDFLAGS} ${xext_LDFLAGS}
-             ${x11_LDFLAGS} ${nls_LIBS} ${icewm_img_libs})
+             ${xi_LDFLAGS} ${x11_LDFLAGS} ${nls_LIBS} ${icewm_img_libs})
 
 ADD_EXECUTABLE(icewm${EXEEXT} ${ICEWM_SRCS})
 TARGET_LINK_LIBRARIES(icewm${EXEEXT} ${icewm_libs})

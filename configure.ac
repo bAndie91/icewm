@@ -240,6 +240,19 @@ else
     AC_MSG_WARN([RANDR disabled.])
 fi
 
+AC_ARG_ENABLE([xinput2],
+    AS_HELP_STRING([--disable-xinput2],[Disable XInput2 raw-event tracking.]))
+if test x$enable_xinput2 != xno; then
+    PKG_CHECK_MODULES([XI],[xi >= 1.2],[
+	CORE_CFLAGS="$XI_CFLAGS $CORE_CFLAGS"
+	CORE_LIBS="$XI_LIBS $CORE_LIBS"
+	AC_DEFINE([CONFIG_XINPUT2],[1],[Define to enable XInput2 raw-event tracking.])
+	features="$features xinput2"],
+	[AC_MSG_NOTICE([Package XI is required for keyboard/pointer activity tracking.])])
+else
+    AC_MSG_WARN([XINPUT2 disabled.])
+fi
+
 AC_ARG_ENABLE([xres],
     AS_HELP_STRING([--disable-xres],[Disable use of XRES extension.]))
 if test x$enable_xres != xno; then

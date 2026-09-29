@@ -306,9 +306,10 @@ window options or the client still wins.
   input is often unrelated to the window that appears later.
 - **Heuristic chain (policy 2):** (1) owner (`WM_TRANSIENT_FOR`) frame's
   monitor; (2) monitor of the most recently focused frame with the same
-  `WM_CLIENT_LEADER`; (3) monitor under the mouse pointer
-  (`XQueryPointer` at map time, the one input position queryable at any
-  time); (4) focused window / primary. Policy 1 skips step 2. Policy 0 is
+  `WM_CLIENT_LEADER`; (3) whichever input device was used last: the mouse pointer's monitor
+  (`XQueryPointer` at map time) if pointer activity is newer, the focused
+  window's monitor if keyboard activity is newer; (4) focused window /
+  primary. Policy 1 skips step 2. Policy 0 is
   the old behavior (focused window, else owner, else primary).
 - **Fix needed along the way:** `getCascadePlace()` and the `CenterLarge`
   branch ignored the chosen monitor (they used the frame's not-yet-placed
@@ -325,3 +326,22 @@ window options or the client still wins.
   chooser for `getSwitchScreen()` if the quick-switch popup should follow
   the pointer too; per-monitor cascade counters instead of one shared
   `fCascadeX/Y`.
+
+### Keyboard vs. pointer recency (step 3)
+
+The core protocol has no "time since last key / last motion" query.
+`XScreenSaver` and the XSync `IDLETIME` counter are global, and the
+per-device `DEVICEIDLETIME <id>` XSync counters exist but were measured
+(Xvfb, XTEST input) to reset all together, so they cannot tell the
+devices apart. What works: XInput2 raw events (`XI_RawKeyPress`,
+`XI_RawButtonPress`, `XI_RawMotion`) selected on the root window for all
+master devices are delivered regardless of focus and grabs, with a server
+timestamp. `YWMApp::initInputTracking()` selects them,
+`YWMApp::filterEvent()` records the newest key and pointer times, and
+`keyboardUsedLastNotPointer()` compares them. Optional dependency
+(`CONFIG_XINPUT2`, needs libXi >= 1.2; CMake and configure.ac, autotools
+path not built here); without it, or before any input was seen, step 3
+falls back to the pointer. Tested under Xvfb/XTEST: after a keypress the
+new window follows the focused window even with the pointer on the other
+monitor; after mouse movement it follows the pointer.
+Caveat: any pointer jitter counts as pointer activity.

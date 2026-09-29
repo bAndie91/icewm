@@ -53,6 +53,12 @@ public:
     virtual void handleSignal(int sig);
     virtual bool handleIdle();
     virtual bool filterEvent(const XEvent &xev);
+
+    // Which input device was used last (XInput2 raw events; the core
+    // protocol cannot tell). False when unavailable or nothing seen yet.
+    bool inputTrackingActive() const { return fInputTracking; }
+    bool keyboardUsedLastNotPointer() const;
+
     virtual void actionPerformed(YAction action, unsigned int modifiers = 0);
 
     virtual void handleMsgBox(YMsgBox *msgbox, int operation);
@@ -68,6 +74,15 @@ public:
 #endif
 
     void setFocusMode(FocusModel mode);
+
+private:
+    void initInputTracking();
+    bool fInputTracking = false;
+    int fXi2Opcode = 0;
+    Time fLastKeyTime = 0;
+    Time fLastPointerTime = 0;
+
+public:
     void initFocusMode();
     void initFocusCustom();
     FocusModel loadFocusMode();

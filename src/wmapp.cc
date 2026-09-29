@@ -38,6 +38,10 @@
 #endif
 #undef override
 #include <X11/Xproto.h>
+#include <stdint.h>
+#ifdef CONFIG_XINPUT2
+#include <X11/extensions/XInput2.h>
+#endif
 #include "ywordexp.h"
 #include "intl.h"
 
@@ -1399,6 +1403,7 @@ YWMApp::YWMApp(int *argc, char ***argv, const char *displayName,
 {
     wmapp = this;
     YIcon::iconResourceLocator = this;
+    initInputTracking();
 
     WMConfig::loadConfiguration(configFile);
     WMConfig::loadThemeConfiguration();
@@ -1663,7 +1668,51 @@ void YWMApp::signalGuiEvent(GUIEvent ge) {
     guiSignaler->signal(ge);
 }
 
+void YWMApp::initInputTracking() {
+#ifdef CONFIG_XINPUT2
+    int event, error, major = 2, minor = 0;
+    if (XQueryExtension(display(), "XInputExtension",
+                        &fXi2Opcode, &event, &error) &&
+        XIQueryVersion(display(), &major, &minor) == Success)
+    {
+        unsigned char bits[XIMaskLen(XI_LASTEVENT)] = {};
+        XISetMask(bits, XI_RawKeyPress);
+        XISetMask(bits, XI_RawButtonPress);
+        XISetMask(bits, XI_RawMotion);
+        XIEventMask mask = { XIAllMasterDevices, int(sizeof bits), bits };
+        XISelectEvents(display(), root(), &mask, 1);
+        fInputTracking = true;
+    }
+#endif
+}
+
+bool YWMApp::keyboardUsedLastNotPointer() const {
+    return fInputTracking && fLastKeyTime != 0 &&
+           (fLastPointerTime == 0 ||
+            int32_t(uint32_t(fLastKeyTime) - uint32_t(fLastPointerTime)) > 0);
+}
+
 bool YWMApp::filterEvent(const XEvent &xev) {
+#ifdef CONFIG_XINPUT2
+    if (fInputTracking && xev.type == GenericEvent &&
+        xev.xcookie.extension == fXi2Opcode)
+    {
+        XGenericEventCookie* cookie =
+            const_cast<XGenericEventCookie*>(&xev.xcookie);
+        if (XGetEventData(display(), cookie)) {
+            if (cookie->data) {
+                const XIRawEvent* raw =
+                    static_cast<const XIRawEvent*>(cookie->data);
+                if (cookie->evtype == XI_RawKeyPress)
+                    fLastKeyTime = raw->time;
+                else
+                    fLastPointerTime = raw->time;
+            }
+            XFreeEventData(display(), cookie);
+        }
+        return true;
+    }
+#endif
     if (xev.type == SelectionClear) {
         if (xev.xselectionclear.window == managerWindow) {
             manager->unmanageClients();

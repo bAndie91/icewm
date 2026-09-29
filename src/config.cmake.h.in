@@ -56,6 +56,7 @@
 #cmakedefine HAVE_XINTERNATOMS 1
 #cmakedefine HAVE_XRES 1
 #cmakedefine CONFIG_XRANDR 1
+#cmakedefine CONFIG_XINPUT2 1
 #cmakedefine CONFIG_XFREETYPE @CONFIG_XFREETYPE_VALUE@
 #cmakedefine CONFIG_COREFONTS 1
 #cmakedefine CONFIG_EXTERNAL_TRAY 1

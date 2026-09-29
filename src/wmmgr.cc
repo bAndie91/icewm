@@ -1686,6 +1686,14 @@ int YWindowManager::getNewWindowScreen(YFrameWindow* frame) {
         }
     }
 
+    // The user is probably looking where they last used an input device:
+    // typing goes to the focused window, mouse activity to the pointer.
+    if (wmapp && wmapp->keyboardUsedLastNotPointer() && fFocusWin) {
+        int s = fFocusWin->getScreen();
+        if (inrange(s, 0, count - 1))
+            return s;
+    }
+
     Window root, child;
     int rx, ry, wx, wy;
     unsigned mask;
