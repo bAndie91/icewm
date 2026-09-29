@@ -556,7 +556,7 @@ void YFrameWindow::doManage(YFrameClient *clientw, bool &doActivate, bool &reque
 }
 
 void YFrameWindow::afterManage() {
-    if (affectsWorkArea())
+    if (affectsWorkArea() || TaskBar::isTaskBar(client()))
         manager->updateWorkArea();
     manager->updateClientList();
     setShape();
