@@ -198,10 +198,17 @@ Each piece is sized to be doable in one sitting. Status below.
      won't see the per-monitor split icewm's own internal logic uses.
      This isn't new; it's the same limitation any Xinerama-era
      multi-monitor icewm setup already had, unrelated to multi-taskbar.
-7. **[TODO]** `NEWS` entry, and a pass on real multi-monitor hardware
-   (see "Testing" below for what has and hasn't been exercised). The
-   man page (`man/icewm-preferences.pod`) is already updated for every
-   preference.
+7. **[PARTLY DONE]** Release notes and a real-hardware pass.
+   - `NEWS` entry: **deliberately not hand-edited.** `NEWS` is generated
+     from `git shortlog` by `gennews.sh` at release time, so a manual
+     entry would just be overwritten. The user-visible surface is
+     documented in `man/icewm-preferences.pod` instead (all
+     preferences, including the maintainer's `TaskBarShowKeyboard` /
+     `KeyboardCommand`, are there). If upstream wants a hand-written
+     summary, it belongs in the pull-request description.
+   - Simulated-hardware pass under Xvfb: done, see "Testing" below.
+   - Real multi-monitor hardware pass: **still TODO, and only the
+     maintainer can do it** (no RandR hardware in the sandbox).
 
 ## Follow-ups after Piece 4 (found by testing / review)
 
@@ -227,6 +234,17 @@ Each piece is sized to be doable in one sitting. Status below.
   screen in `fHomeScreen`. The two are compatible; `07939a8` is now
   redundant for the common case but harmless and can stay or go.
 
+## Maintainer changes after Piece 5 (already on this branch)
+
+- `46be8c4` `TaskBarShowKeyboard` (default on) and `KeyboardCommand`
+  (default `setxkbmap`): the keyboard indicator can be hidden
+  independently of `KeyboardLayouts`, and the layout-switch command is
+  configurable. Still gated by `hostsSingleton(taskBarKeyboardScreen)`,
+  so it composes with the per-widget monitor pinning from Piece 3.
+- `0061566` `afterManage()` now also calls `updateWorkArea()` when the
+  managed client is one of the taskbars, so each bar's strut is applied
+  as soon as it is managed. Verified: see the strut check below.
+
 ## Testing
 
 Builds clean with CMake. Exercised at runtime under Xvfb with synthetic
@@ -235,10 +253,27 @@ it): multi-bar startup, per-bar `_NET_WM_STRUT_PARTIAL`, singleton
 widgets pinned to non-primary and to non-existent monitors (fall back to
 primary), default vs home-screen-only task buttons, buttons following a
 client-requested move, and 10 rapid hotplug cycles (1-3 monitors) with
-pinned widgets and open windows. **Not** exercised: real RandR
+pinned widgets and open windows. Re-run on 2026-09-29 against
+`0061566` (clean CMake build, no warnings): 2/3/1 monitors with
+per-bar `_NET_WM_STRUT_PARTIAL` (each bar's interval covers only its own
+monitor, e.g. 0-425 / 426-851 / 852-1277 for three); keyboard indicator
+pinned to monitor 1 falls back to the primary at 1 monitor and returns
+at 2; task buttons are re-created on every bar after each rebuild
+(5 hotplug cycles); `TaskBarWindowsHomeScreenOnly` shows one button per
+bar, moves the button to the other bar on a client-requested move, and
+merges/splits correctly across hotplug; 5 hotplug cycles with the start
+menu opened first did not crash (weak check: it confirms icewm stayed
+alive, not that the menu was still open when the screen changed).
+The test hook itself is in `contrib/multitaskbar-test/fake-screens.patch`
+(apply with `git apply`, never commit the result). Test-script gotcha:
+`run_test.sh` starts xeyes/xclock without `setsid`, so they die when the
+calling shell exits; launch them with `setsid` when driving the harness
+across several commands.
+**Not** exercised: real RandR
 hardware, interactive titlebar drags (my synthetic drag missed the
-titlebar), a docked tray icon surviving a rebuild, open menus/popups
-during a hotplug, and per-monitor DPI.
+titlebar), a docked tray icon surviving a rebuild, whether an open menu
+is actually torn down cleanly (vs. merely not crashing), and
+per-monitor DPI.
 
 ## Build notes
 

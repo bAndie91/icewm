@@ -1,0 +1,36 @@
+diff --git a/src/ywindow.cc b/src/ywindow.cc
+index ddba0679..c7738a57 100644
+--- a/src/ywindow.cc
++++ b/src/ywindow.cc
+@@ -1961,6 +1961,31 @@ bool YDesktop::updateXineramaInfo(unsigned& horizontal, unsigned& vertical) {
+     }
+ #endif
+ 
++    // TEST ONLY (contrib/multitaskbar-test): synthetic monitors.
++    if (const char* fsf = getenv("ICEWM_FAKE_SCREENS_FILE")) {
++        int n = 0;
++        if (FILE* f = fopen(fsf, "r")) {
++            if (fscanf(f, "%d", &n) != 1) n = 0;
++            fclose(f);
++        }
++        if (n > 0) {
++            for (DesktopScreenInfo& xi : xiInfo)
++                xi.usage = 0;
++            unsigned W = unsigned(xapp->displayWidth());
++            unsigned H = unsigned(xapp->displayHeight());
++            for (int i = 0; i < n; i++) {
++                DesktopScreenInfo si(i, int(W / n * i), 0, W / n, H);
++                change |= addScreen(si);
++            }
++            for (int i = xiInfo.getCount(); --i >= 0; ) {
++                if (xiInfo[i].usage == 0) {
++                    xiInfo.remove(i);
++                    change = true;
++                }
++            }
++        }
++    }
++
+     if (xiInfo.isEmpty()) {
+         DesktopScreenInfo si(0, 0, 0,
+                              unsigned(xapp->displayWidth()),
