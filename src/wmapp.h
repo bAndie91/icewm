@@ -54,8 +54,9 @@ public:
     virtual bool handleIdle();
     virtual bool filterEvent(const XEvent &xev);
 
-    // Which input device was used last (XInput2 raw events; the core
-    // protocol cannot tell). False when unavailable or nothing seen yet.
+    // Which input device was used last: keyboard, or mouse buttons/wheel
+    // (plain pointer motion is ignored). XInput2 raw events; the core
+    // protocol cannot tell. False when unavailable or nothing seen yet.
     bool inputTrackingActive() const { return fInputTracking; }
     bool keyboardUsedLastNotPointer() const;
 

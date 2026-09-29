@@ -1678,7 +1678,6 @@ void YWMApp::initInputTracking() {
         unsigned char bits[XIMaskLen(XI_LASTEVENT)] = {};
         XISetMask(bits, XI_RawKeyPress);
         XISetMask(bits, XI_RawButtonPress);
-        XISetMask(bits, XI_RawMotion);
         XIEventMask mask = { XIAllMasterDevices, int(sizeof bits), bits };
         XISelectEvents(display(), root(), &mask, 1);
         fInputTracking = true;
@@ -1705,7 +1704,7 @@ bool YWMApp::filterEvent(const XEvent &xev) {
                     static_cast<const XIRawEvent*>(cookie->data);
                 if (cookie->evtype == XI_RawKeyPress)
                     fLastKeyTime = raw->time;
-                else
+                else if (cookie->evtype == XI_RawButtonPress)
                     fLastPointerTime = raw->time;
             }
             XFreeEventData(display(), cookie);

@@ -220,9 +220,9 @@ On multi-monitor setups, choose the monitor on which new windows are
 placed, unless the window asks for a position itself. 0 uses the monitor
 of the focused window. 1 uses the monitor of the window's owner (for
 example the parent of a dialog), and otherwise the monitor of whichever
-input device was used last: the monitor the mouse pointer is on if the
-mouse was used more recently, or the monitor of the focused window if
-the keyboard was. (Telling the devices apart needs XInput2, i.e. icewm
+input device was used last: the monitor the mouse pointer is on if a
+mouse button was pressed or the wheel turned more recently (plain pointer
+motion is ignored), or the monitor of the focused window if a key was. (Telling the devices apart needs XInput2, i.e. icewm
 built with CONFIG_XINPUT2; without it the pointer is always used.)
 2 is like 1, but before that it prefers the monitor of the most recently
 focused window of the same application (same C<WM_CLIENT_LEADER>).

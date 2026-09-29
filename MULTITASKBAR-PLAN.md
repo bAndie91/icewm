@@ -334,7 +334,7 @@ The core protocol has no "time since last key / last motion" query.
 per-device `DEVICEIDLETIME <id>` XSync counters exist but were measured
 (Xvfb, XTEST input) to reset all together, so they cannot tell the
 devices apart. What works: XInput2 raw events (`XI_RawKeyPress`,
-`XI_RawButtonPress`, `XI_RawMotion`) selected on the root window for all
+`XI_RawButtonPress`; motion is no longer used, see below) selected on the root window for all
 master devices are delivered regardless of focus and grabs, with a server
 timestamp. `YWMApp::initInputTracking()` selects them,
 `YWMApp::filterEvent()` records the newest key and pointer times, and
@@ -344,4 +344,4 @@ path not built here); without it, or before any input was seen, step 3
 falls back to the pointer. Tested under Xvfb/XTEST: after a keypress the
 new window follows the focused window even with the pointer on the other
 monitor; after mouse movement it follows the pointer.
-Caveat: any pointer jitter counts as pointer activity.
+Only `XI_RawButtonPress` (clicks and wheel) counts as pointer activity; `XI_RawMotion` is deliberately not selected, so a bumped mouse does not override typing.
