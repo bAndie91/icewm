@@ -59,6 +59,9 @@ public:
     // protocol cannot tell. False when unavailable or nothing seen yet.
     bool inputTrackingActive() const { return fInputTracking; }
     bool keyboardUsedLastNotPointer() const;
+    // Monitor of the last mouse button/wheel event if it did not move the
+    // keyboard focus (click on the root window, taskbar, ...), else -1.
+    int lastClickScreenWithoutFocusChange() const;
 
     virtual void actionPerformed(YAction action, unsigned int modifiers = 0);
 
@@ -82,6 +85,8 @@ private:
     int fXi2Opcode = 0;
     Time fLastKeyTime = 0;
     Time fLastPointerTime = 0;
+    Window fClickFocus = None;   // focused client when the last click came in
+    int fClickScreen = -1;       // monitor under the pointer at that time
 
 public:
     void initFocusMode();

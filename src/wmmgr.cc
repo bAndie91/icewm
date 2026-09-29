@@ -1689,6 +1689,12 @@ int YWindowManager::getNewWindowScreen(YFrameWindow* frame) {
     // The user is probably looking where they last used an input device:
     // typing goes to the focused window, mouse activity to the pointer.
     if (wmapp && wmapp->keyboardUsedLastNotPointer() && fFocusWin) {
+        // A click that left the focus alone (root window, taskbar) moved
+        // the user's attention to that monitor although the focused
+        // window did not follow.
+        int c = wmapp->lastClickScreenWithoutFocusChange();
+        if (inrange(c, 0, count - 1))
+            return c;
         int s = fFocusWin->getScreen();
         if (inrange(s, 0, count - 1))
             return s;

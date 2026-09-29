@@ -222,7 +222,10 @@ of the focused window. 1 uses the monitor of the window's owner (for
 example the parent of a dialog), and otherwise the monitor of whichever
 input device was used last: the monitor the mouse pointer is on if a
 mouse button was pressed or the wheel turned more recently (plain pointer
-motion is ignored), or the monitor of the focused window if a key was. (Telling the devices apart needs XInput2, i.e. icewm
+motion is ignored), or the monitor of the focused window if a key was. A mouse click that
+did not move the focus (on the root window or a taskbar, say) counts as
+the monitor the click was on even if a key is pressed afterwards, since
+the focused window is then not where the user is looking. (Telling the devices apart needs XInput2, i.e. icewm
 built with CONFIG_XINPUT2; without it the pointer is always used.)
 2 is like 1, but before that it prefers the monitor of the most recently
 focused window of the same application (same C<WM_CLIENT_LEADER>).

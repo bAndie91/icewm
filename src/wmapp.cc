@@ -1691,6 +1691,17 @@ bool YWMApp::keyboardUsedLastNotPointer() const {
             int32_t(uint32_t(fLastKeyTime) - uint32_t(fLastPointerTime)) > 0);
 }
 
+int YWMApp::lastClickScreenWithoutFocusChange() const {
+    if (fInputTracking == false || fClickScreen < 0 || manager == nullptr)
+        return -1;
+    YFrameWindow* f = manager->getFocus();
+    Window now = (f && f->client()) ? f->client()->handle() : None;
+    // The click's own focus change (click on an application window) is
+    // applied after the raw event arrives, so a different focus now means
+    // the click took the focus and the focused window is the right guide.
+    return now == fClickFocus ? fClickScreen : -1;
+}
+
 bool YWMApp::filterEvent(const XEvent &xev) {
 #ifdef CONFIG_XINPUT2
     if (fInputTracking && xev.type == GenericEvent &&
@@ -1704,8 +1715,20 @@ bool YWMApp::filterEvent(const XEvent &xev) {
                     static_cast<const XIRawEvent*>(cookie->data);
                 if (cookie->evtype == XI_RawKeyPress)
                     fLastKeyTime = raw->time;
-                else if (cookie->evtype == XI_RawButtonPress)
+                else if (cookie->evtype == XI_RawButtonPress) {
                     fLastPointerTime = raw->time;
+                    // Raw events carry no position; ask where the pointer is.
+                    Window rw, cw;
+                    int rx, ry, wx, wy;
+                    unsigned mk;
+                    fClickScreen = XQueryPointer(display(), root(), &rw, &cw,
+                                                 &rx, &ry, &wx, &wy, &mk)
+                                 ? desktop->getScreenForRect(rx, ry, 1, 1)
+                                 : -1;
+                    YFrameWindow* f = manager ? manager->getFocus() : nullptr;
+                    fClickFocus = (f && f->client()) ? f->client()->handle()
+                                                     : None;
+                }
             }
             XFreeEventData(display(), cookie);
         }

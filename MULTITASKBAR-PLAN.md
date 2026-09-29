@@ -345,3 +345,23 @@ falls back to the pointer. Tested under Xvfb/XTEST: after a keypress the
 new window follows the focused window even with the pointer on the other
 monitor; after mouse movement it follows the pointer.
 Only `XI_RawButtonPress` (clicks and wheel) counts as pointer activity; `XI_RawMotion` is deliberately not selected, so a bumped mouse does not override typing.
+
+### Click that does not take focus, then keyboard (bug found by the user)
+
+With "keyboard used last -> focused window's monitor", clicking the root
+window or a taskbar on monitor 2 and then launching something by key
+(binding, run dialog) still placed the window on the focused window's
+monitor 1, because those clicks do not move focus. Root/taskbar click
+alone already worked. Fix: on each raw button press `YWMApp` records the
+monitor under the pointer and the focused client at that moment;
+`lastClickScreenWithoutFocusChange()` returns that monitor only while the
+focus is still the same client (a click on an application window changes
+focus right after the raw event, so then the focused window is trusted).
+Used by `getNewWindowScreen()` only in the keyboard-newer branch.
+Tested (Xvfb, 2 monitors): focus on monitor 1, root click / wheel /
+taskbar click on monitor 2, then a key -> monitor 2; click on an app on
+monitor 2, then a key -> monitor 2; focus on B (monitor 2), root click on
+monitor 1, key -> monitor 1; earlier owner/group/typing/motion cases
+unchanged. Residual: a wheel turn over an unfocused window on another
+monitor followed by typing into the (still focused) window on the first
+monitor is placed on the wheel's monitor.
