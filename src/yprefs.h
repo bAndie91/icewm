@@ -20,6 +20,7 @@ XIV(bool, xrrDisable,                           false)
 XIV(int, xineramaPrimaryScreen,                 0)
 XIV(bool, taskBarShowOnAllMonitors,             false)
 XIV(bool, taskBarWindowsHomeScreenOnly,         false)
+XIV(int, newWindowScreenPolicy,                 0)
 XIV(int, MenuActivateDelay,                     40)
 XIV(int, SubmenuActivateDelay,                  300)
 extern int DelayFuzziness;

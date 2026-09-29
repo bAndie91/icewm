@@ -1590,9 +1590,9 @@ void YWindowManager::smartPlace(YArrange arrange) {
     delete[] screens;
 }
 
-void YWindowManager::getCascadePlace(YFrameWindow *frame, int &lastX, int &lastY, int &x, int &y, int w, int h) {
+void YWindowManager::getCascadePlace(YFrameWindow *frame, int &lastX, int &lastY, int &x, int &y, int w, int h, int xiscreen) {
     int mx, my, Mx, My;
-    getWorkArea(frame, &mx, &my, &Mx, &My);
+    getWorkArea(frame, &mx, &my, &Mx, &My, xiscreen);
 
     /// !!! make auto placement cleaner and (optionally) smarter
     if (lastX < mx) lastX = mx;
@@ -1651,6 +1651,56 @@ void YWindowManager::setWindows(YArrange arrange, YAction action) {
     focusTopWindow();
 }
 
+// Choose the monitor on which a new window, which does not request a
+// position of its own, is placed. Policy 0 keeps the historic behavior
+// (screen of the focused window). The other policies try to guess where
+// the user is looking: a dialog belongs next to its owner, another
+// window of the same application (same WM_CLIENT_LEADER) belongs next to
+// its most recently focused sibling, and everything else goes where the
+// mouse pointer is, the only input position that can be queried at any
+// time without grabbing input.
+int YWindowManager::getNewWindowScreen(YFrameWindow* frame) {
+    const int count = getScreenCount();
+    if (newWindowScreenPolicy <= 0 || count < 2) {
+        return fFocusWin ? fFocusWin->getScreen() :
+               frame->owner() ? frame->owner()->getScreen() :
+               xineramaPrimaryScreen;
+    }
+
+    if (YFrameWindow* owner = frame->owner()) {
+        int s = owner->getScreen();
+        if (inrange(s, 0, count - 1))
+            return s;
+    }
+
+    const Window leader = frame->clientLeader();
+    if (newWindowScreenPolicy >= 2 && leader) {
+        for (YFrameIter f = focusedIterator(); ++f; ) {
+            if (f == frame || f->isManaged() == false ||
+                TaskBar::isTaskBar(f->client()) ||
+                f->clientLeader() != leader)
+                continue;
+            int s = f->getScreen();
+            if (inrange(s, 0, count - 1))
+                return s;
+        }
+    }
+
+    Window root, child;
+    int rx, ry, wx, wy;
+    unsigned mask;
+    if (XQueryPointer(xapp->display(), xapp->root(), &root, &child,
+                      &rx, &ry, &wx, &wy, &mask))
+    {
+        int s = getScreenForRect(rx, ry, 1, 1);
+        if (inrange(s, 0, count - 1))
+            return s;
+    }
+
+    int s = fFocusWin ? fFocusWin->getScreen() : xineramaPrimaryScreen;
+    return inrange(s, 0, count - 1) ? s : 0;
+}
+
 void YWindowManager::getNewPosition(YFrameWindow *frame, int &x, int &y,
                                     int w, int h, int xiscreen) {
     if (centerTransientsOnOwner && frame->owner()) {
@@ -1668,11 +1718,11 @@ void YWindowManager::getNewPosition(YFrameWindow *frame, int &x, int &y,
         getSmartPlace(true, frame, x, y, w, h, xiscreen);
     }
     else {
-        getCascadePlace(frame, fCascadeX, fCascadeY, x, y, w, h);
+        getCascadePlace(frame, fCascadeX, fCascadeY, x, y, w, h, xiscreen);
     }
     if (centerLarge) {
         int mx, my, Mx, My;
-        getWorkArea(frame, &mx, &my, &Mx, &My);
+        getWorkArea(frame, &mx, &my, &Mx, &My, xiscreen);
         int dw = (Mx - mx) / 2, dh = (My - my) / 2;
         if (w > dw && h > dh) {
             x = max(mx, mx + dw - w / 2);
@@ -1740,9 +1790,7 @@ void YWindowManager::placeWindow(YFrameWindow *frame,
         (notbit(client->sizeHints()->flags, USPosition | PPosition) ||
          frame->frameOption(YFrameWindow::foIgnorePosition)))
     {
-        int xiscreen = (fFocusWin ? fFocusWin->getScreen() :
-                        frame->owner() ? frame->owner()->getScreen() :
-                        xineramaPrimaryScreen);
+        int xiscreen = getNewWindowScreen(frame);
         getNewPosition(frame, x, y, posWidth, posHeight - borderOffset, xiscreen);
         posX = x;
         posY = y - borderOffset;

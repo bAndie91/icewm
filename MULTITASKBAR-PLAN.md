@@ -290,3 +290,38 @@ libxrandr-dev libxinerama-dev libxpm-dev libxft-dev libfontconfig1-dev
 libxcursor-dev libxres-dev libsndfile1-dev libfribidi-dev
 libxcomposite-dev libxdamage-dev libxfixes-dev libimlib2-dev
 libasound2-dev gettext`. Piece 1 builds clean with no new warnings.
+
+## Follow-on feature: place new windows on the monitor the user is looking at
+
+Pref `NewWindowScreenPolicy` (0 = legacy, default; 1; 2). Implemented in
+`YWindowManager::getNewWindowScreen()` (wmmgr.cc), used by `placeWindow()`
+only for windows that do not request a position themselves (no
+USPosition/PPosition, or `foIgnorePosition`); explicit geometry from
+window options or the client still wins.
+
+- **Why not "monitor of the last input event":** a window manager only
+  sees input that is grabbed (key bindings) or delivered to its own
+  windows (frames, taskbar, menus). Key/button/motion events going to
+  clients are invisible without XInput2 raw events, and even then the
+  input is often unrelated to the window that appears later.
+- **Heuristic chain (policy 2):** (1) owner (`WM_TRANSIENT_FOR`) frame's
+  monitor; (2) monitor of the most recently focused frame with the same
+  `WM_CLIENT_LEADER`; (3) monitor under the mouse pointer
+  (`XQueryPointer` at map time, the one input position queryable at any
+  time); (4) focused window / primary. Policy 1 skips step 2. Policy 0 is
+  the old behavior (focused window, else owner, else primary).
+- **Fix needed along the way:** `getCascadePlace()` and the `CenterLarge`
+  branch ignored the chosen monitor (they used the frame's not-yet-placed
+  geometry); both now receive it. `getSmartPlace()` already honored it.
+- **Tested** under Xvfb with 2 synthetic monitors
+  (`contrib/multitaskbar-test/fake-screens.patch`, applied locally, not
+  committed): policy 0 ignores the pointer; policy 2 puts a plain window
+  where the pointer is, a `WM_TRANSIENT_FOR` dialog with its owner on the
+  other monitor, and a same-`WM_CLIENT_LEADER` window with its sibling.
+  Not tested on real RandR hardware.
+- **Possible follow-ups:** remember the screen of the last icewm-visible
+  input (key binding, taskbar/menu click) and prefer it for a couple of
+  seconds so a launcher keybinding beats a resting pointer; use the same
+  chooser for `getSwitchScreen()` if the quick-switch popup should follow
+  the pointer too; per-monitor cascade counters instead of one shared
+  `fCascadeX/Y`.

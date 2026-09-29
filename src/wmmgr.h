@@ -241,7 +241,8 @@ public:
     void tilePlace(YFrameWindow *w, int tx, int ty, int tw, int th);
     void tileWindows(YArrange arrange, bool vertical);
     void smartPlace(YArrange arrange);
-    void getCascadePlace(YFrameWindow *frame, int &lastX, int &lastY, int &x, int &y, int w, int h);
+    void getCascadePlace(YFrameWindow *frame, int &lastX, int &lastY, int &x, int &y, int w, int h, int xiscreen = -1);
+    int getNewWindowScreen(YFrameWindow *frame);
     void cascadePlace(YArrange arrange);
     void setWindows(YArrange arrange, YAction action);
 
