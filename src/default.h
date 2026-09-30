@@ -436,7 +436,7 @@ cfoption icewm_preferences[] = {
 
     OIV("XineramaPrimaryScreen",                &xineramaPrimaryScreen, 0, 63, "Primary screen for xinerama where taskbar is shown"),
     OBV("TaskBarShowOnAllMonitors",             &taskBarShowOnAllMonitors,      "Show a task bar on every monitor instead of only the primary one"),
-    OIV("NewWindowScreenPolicy",                &newWindowScreenPolicy, 0, 2,   "Monitor for new windows that do not request a position: 0=the focused window's (legacy), 1=owner window's, else where the user last clicked or scrolled the mouse (pointer's monitor) or typed (focused window's monitor), 2=like 1 but the same application's other windows come before that"),
+    OIV("NewWindowScreenPolicy",                &newWindowScreenPolicy, 0, 2,   "Monitor for new windows that do not request a position: 0=focused window's monitor; 1=owner window's (e.g. the parent of a dialog), else the monitor of the most recent input (mouse click/wheel: pointer's monitor; key press: focused window's monitor), else focused window's; 2=like 1, but the same application's most recently focused window comes before the input rule"),
     OBV("TaskBarWindowsHomeScreenOnly",         &taskBarWindowsHomeScreenOnly,  "Show a window's task button only on the bar of the monitor it is on, instead of on every bar"),
     OSV("TaskBarMailboxScreen",                 &taskBarMailboxScreen,          "Monitor (number or xrandr output name) for the mailbox status; empty = primary screen"),
     OSV("TaskBarCPUStatusScreen",               &taskBarCPUStatusScreen,        "Monitor (number or xrandr output name) for the CPU status meter; empty = primary screen"),

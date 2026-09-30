@@ -216,23 +216,60 @@ Smart window placement (minimal overlap).
 
 =item B<NewWindowScreenPolicy>=0
 
-On multi-monitor setups, choose the monitor on which new windows are
-placed, unless the window asks for a position itself. 0 uses the monitor
-of the focused window. 1 uses the monitor of the window's owner (for
-example the parent of a dialog), and otherwise the monitor of whichever
-input device was used last: the monitor the mouse pointer is on if a
-mouse button was pressed or the wheel turned more recently (plain pointer
-motion is ignored), or the monitor of the focused window if a key was. A mouse click that
-did not move the focus (on the root window or a taskbar, say) counts as
-the monitor the click was on even if a key is pressed afterwards, since
-the focused window is then not where the user is looking. Wheel turns of
-smooth-scrolling devices, which X reports as motion of a scroll axis and
-not as a button press, are recognized as well. Set the environment
-variable C<ICEWM_PLACEMENT_DEBUG> to make icewm log to standard error
-the input events it saw and why each new window went to its monitor. (Telling the devices apart needs XInput2, i.e. icewm
-built with CONFIG_XINPUT2; without it the pointer is always used.)
-2 is like 1, but before that it prefers the monitor of the most recently
-focused window of the same application (same C<WM_CLIENT_LEADER>).
+On multi-monitor setups, select the monitor on which a new window is
+placed. This only applies to windows that do not ask for a position
+themselves (by a position hint or a window option); the window is then
+placed, for example cascaded or centered, on the selected monitor.
+
+=over 4
+
+=item B<0>
+
+The monitor of the focused window, or else of the window's owner, or
+else the primary monitor.
+
+=item B<1>
+
+The first of these that applies:
+
+=over 4
+
+=item 1.
+
+The monitor of the window's owner, that is the window it is
+C<WM_TRANSIENT_FOR>, such as the parent of a dialog.
+
+=item 2.
+
+The monitor where the user was last active, judged by the most recent
+input event, which is either a key press or a mouse button press or
+wheel turn (plain pointer motion is ignored). If it was a mouse button or
+wheel event, that is the monitor the mouse pointer is on. If it was a key
+press, that is the monitor of the focused window, except when a mouse
+button or wheel event happened after the last change of the focused
+window (a click on the root window or a taskbar, for example, does not
+change focus): then that event's monitor is used.
+
+=item 3.
+
+The monitor of the focused window, or else the primary monitor.
+
+=back
+
+=item B<2>
+
+Like 1, but between 1. and 2. the monitor of the most recently focused
+window of the same application (the same C<WM_CLIENT_LEADER>) is tried.
+
+=back
+
+Step 2. needs XInput2 to tell keyboard and mouse input apart, which
+requires icewm to be built with CONFIG_XINPUT2; without it the monitor of
+the mouse pointer is used in that step.
+
+Set the environment variable C<ICEWM_PLACEMENT_DEBUG> to make icewm log
+to standard error the input events it noticed and, for each new window,
+the monitor chosen and the reason.
 
 =item B<HideTitleBarWhenMaximized>=0
 
