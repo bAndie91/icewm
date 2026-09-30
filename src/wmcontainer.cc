@@ -9,6 +9,7 @@
 #include "wmmgr.h"
 #include "wmapp.h"
 #include "prefs.h"
+#include "yprefs.h"
 
 YClientContainer::YClientContainer(YFrameWindow *frame, int depth,
                                    Visual *visual, Colormap cmap)
@@ -16,6 +17,10 @@ YClientContainer::YClientContainer(YFrameWindow *frame, int depth,
     , fFrame(frame)
     , fHaveGrab(false)
     , fHaveActionGrab(false)
+    , fMoveClickValid(false)
+    , fMoveClickTime(0)
+    , fMoveClickX(0)
+    , fMoveClickY(0)
 {
     setStyle(wsManager | wsNoExpose);
     setPointer(YWMApp::leftPointer);
@@ -26,6 +31,23 @@ YClientContainer::YClientContainer(YFrameWindow *frame, int depth,
 YClientContainer::~YClientContainer() {
     if (destroyed() == false)
         releaseButtons();
+}
+
+// Remember the press of the window move button (Alt+Button1 by default), and
+// tell whether it completes a double click: the previous press was recent
+// enough and close enough. The press which completes a double click does
+// not start the next one.
+bool YClientContainer::isMoveDoubleClick(const XButtonEvent &button) {
+    const bool dbl = fMoveClickValid &&
+        button.time - fMoveClickTime < Time(MultiClickTime) &&
+        abs(button.x_root - fMoveClickX) <= ClickMotionDistance &&
+        abs(button.y_root - fMoveClickY) <= ClickMotionDistance;
+
+    fMoveClickValid = !dbl;
+    fMoveClickTime = button.time;
+    fMoveClickX = button.x_root;
+    fMoveClickY = button.y_root;
+    return dbl;
 }
 
 void YClientContainer::handleButton(const XButtonEvent &button) {
@@ -83,6 +105,11 @@ void YClientContainer::handleButton(const XButtonEvent &button) {
         else if (gMouseWinMove == button) {
             XAllowEvents(xapp->display(), AsyncPointer, CurrentTime);
 
+            // double click with the move button toggles maximization
+            if (isMoveDoubleClick(button)) {
+                getFrame()->actionPerformed(actionMaximize, button.state);
+                return ;
+            }
             if (getFrame()->canMove()) {
                 int px = button.x + x();
                 int py = button.y + y();

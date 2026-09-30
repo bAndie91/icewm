@@ -30,6 +30,14 @@ private:
     YFrameWindow* fFrame;
     bool fHaveGrab;
     bool fHaveActionGrab;
+
+    // previous press of the window move button, to detect a double click
+    bool fMoveClickValid;
+    Time fMoveClickTime;
+    int fMoveClickX;
+    int fMoveClickY;
+
+    bool isMoveDoubleClick(const XButtonEvent &button);
 };
 
 #endif
