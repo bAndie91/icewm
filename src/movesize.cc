@@ -572,6 +572,8 @@ void YFrameWindow::outlineResize() {
     drawMoveSizeFX(xx, yy, ww, hh);
 
     XSync(xapp->display(), False);
+    if (isMaximizedAny() && YRect(xx, yy, ww, hh) != geometry())
+        unmaximizeForResize();
     setCurrentGeometryOuter(YRect(xx, yy, ww, hh));
     XUngrabServer(xapp->display());
 }
@@ -1140,6 +1142,24 @@ void YFrameWindow::moveMaximizedToScreen(int screen) {
     statusMoveSize->setStatus(this);
 }
 
+// A maximized window which the user starts to resize is not maximized any
+// more. Drop the maximized state but keep the geometry the window has right
+// now, so the drag continues from there and later relayouts (redraw, workarea
+// changes, ...) do not snap the window back to the maximized size. The decor
+// which was hidden because of the maximized state (title bar, borders)
+// reappears, inside the current outer geometry.
+void YFrameWindow::unmaximizeForResize() {
+    if (!isMaximizedAny())
+        return;
+
+    const YRect geo(geometry());
+    setState(WinStateMaximizedBoth, 0);
+    setNormalGeometryOuter(geo.x(), geo.y(), geo.width(), geo.height());
+    // the outer size may be the same as before, then no relayout was
+    // triggered, but the title bar and borders might have changed.
+    performLayout();
+}
+
 void YFrameWindow::moveWindow(int newX, int newY) {
     const int oldScreen = taskBarWindowsHomeScreenOnly ? getScreen() : -1;
     
@@ -1180,6 +1200,14 @@ void YFrameWindow::handleMotion(const XMotionEvent &motion) {
 
         handleResizeMouse(motion, newX, newY, newWidth, newHeight);
         YRect rect(newX, newY, newWidth, newHeight);
+        if (rect != geometry() && isMaximizedAny()) {
+            // The decor may differ once unmaximized, so recalculate.
+            unmaximizeForResize();
+            newX = x(); newY = y();
+            newWidth = width(); newHeight = height();
+            handleResizeMouse(motion, newX, newY, newWidth, newHeight);
+            rect = YRect(newX, newY, newWidth, newHeight);
+        }
         if (rect != geometry()) {
             drawMoveSizeFX(x(), y(), width(), height());
             setCurrentGeometryOuter(rect);

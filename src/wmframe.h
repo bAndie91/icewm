@@ -157,6 +157,7 @@ public:
     bool relocateNormalGeometry(int screen, int& ix, int& iy, int& iw, int& ih) const;
     YRect maximizedGeometryOn(int screen);
     void moveMaximizedToScreen(int screen);
+    void unmaximizeForResize();
     void outlineResize();
 
     void constrainPositionByModifier(int &x, int &y, const XMotionEvent &motion);
