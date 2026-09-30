@@ -366,18 +366,23 @@ void YFrameWindow::handleMoveMouse(const XMotionEvent &motion, int &newX, int &n
                     newY += EdgeResistance;
             }
         }
-        if (EdgeResistance == 10000 || isMaximizedHoriz()) {
-            if (newX + int(width()) + n * borderX() > Mx)
-                newX = Mx - int(width()) - n * borderX();
-            if (newX < mx)
-                newX = mx;
-        }
-        if (EdgeResistance == 10000 || isMaximizedVert()) {
-            if (newY + int(height()) + n * borderY() > My)
-                newY = My - int(height()) - n * borderY();
-            if (newY < my)
-                newY = my;
-        }
+    }
+    // A maximized window never leaves the work area of its monitor (Shift
+    // does not override this, otherwise it could end up straddling two
+    // monitors, maximized on neither).
+    if ((!(motion.state & ShiftMask) && EdgeResistance == 10000) ||
+        isMaximizedHoriz()) {
+        if (newX + int(width()) + n * borderX() > Mx)
+            newX = Mx - int(width()) - n * borderX();
+        if (newX < mx)
+            newX = mx;
+    }
+    if ((!(motion.state & ShiftMask) && EdgeResistance == 10000) ||
+        isMaximizedVert()) {
+        if (newY + int(height()) + n * borderY() > My)
+            newY = My - int(height()) - n * borderY();
+        if (newY < my)
+            newY = my;
     }
     newX -= borderX();
     newY -= borderY();
@@ -439,7 +444,9 @@ void YFrameWindow::handleResizeMouse(const XMotionEvent &motion,
 }
 
 void YFrameWindow::outlineMove() {
-    int xx(x()), yy(y());
+    int xx(x()), yy(y()), ww(width()), hh(height());
+    const bool maxi = isMaximizedAny();
+    int scr = getScreen();
 
     XGrabServer(xapp->display());
 
@@ -456,9 +463,9 @@ void YFrameWindow::outlineMove() {
                 state = handleMoveKey(xev.xkey, xx, yy);
                 if (state == MoveMoving || state == MoveCancel) {
                     if (xx != ox || yy != oy) {
-                        drawMoveSizeFX(ox, oy, width(), height());
-                        statusMoveSize->setStatus(this, YRect(xx, yy, width(), height()));
-                        drawMoveSizeFX(xx, yy, width(), height());
+                        drawMoveSizeFX(ox, oy, ww, hh);
+                        statusMoveSize->setStatus(this, YRect(xx, yy, ww, hh));
+                        drawMoveSizeFX(xx, yy, ww, hh);
                     }
                 }
                 break;
@@ -470,14 +477,28 @@ void YFrameWindow::outlineMove() {
                 break;
 
             case MotionNotify: {
-                int const ox(xx), oy(yy);
+                int const ox(xx), oy(yy), ow(ww), oh(hh);
 
-                handleMoveMouse(xev.xmotion, xx, yy);
+                if (maxi) {
+                    // show where the window would land: maximized on the
+                    // monitor under the pointer
+                    int ps = pointerScreen(xev.xmotion.x_root,
+                                           xev.xmotion.y_root);
+                    if (ps != scr) {
+                        scr = ps;
+                        YRect r(maximizedGeometryOn(scr));
+                        xx = r.x(); yy = r.y();
+                        ww = r.width(); hh = r.height();
+                    }
+                }
+                else {
+                    handleMoveMouse(xev.xmotion, xx, yy);
+                }
 
-                if (xx != ox || yy != oy) {
-                    drawMoveSizeFX(ox, oy, width(), height());
-                    statusMoveSize->setStatus(this, YRect(xx, yy, width(), height()));
-                    drawMoveSizeFX(xx, yy, width(), height());
+                if (xx != ox || yy != oy || ww != ow || hh != oh) {
+                    drawMoveSizeFX(ox, oy, ow, oh);
+                    statusMoveSize->setStatus(this, YRect(xx, yy, ww, hh));
+                    drawMoveSizeFX(xx, yy, ww, hh);
                 }
 
                 break;
@@ -485,10 +506,13 @@ void YFrameWindow::outlineMove() {
         }
     }
 
-    drawMoveSizeFX(xx, yy, width(), height());
+    drawMoveSizeFX(xx, yy, ww, hh);
 
     XSync(xapp->display(), False);
-    moveWindow(xx, yy);
+    if (maxi && scr != getScreen())
+        moveMaximizedToScreen(scr);
+    else
+        moveWindow(xx, yy);
     XUngrabServer(xapp->display());
 }
 
@@ -1033,6 +1057,89 @@ bool YFrameWindow::handleBeginDrag(const XButtonEvent &down, const XMotionEvent 
     return false;
 }
 
+// The monitor under the pointer; stays on the current one when the pointer
+// is outside of every monitor (gaps between unaligned monitors).
+int YFrameWindow::pointerScreen(int rootX, int rootY) const {
+    for (int s = 0; s < desktop->getScreenCount(); ++s) {
+        if (desktop->getScreenGeometry(s).contains(rootX, rootY))
+            return s;
+    }
+    return getScreen();
+}
+
+// Where the restored (normal) geometry of the window would be if it were
+// moved to another monitor: same relative position, clamped into the target
+// monitor, shrunk if it does not fit. The monitor of a maximized window is
+// derived from its normal geometry, so this decides where it gets maximized.
+// Returns the inner geometry in pixels.
+bool YFrameWindow::relocateNormalGeometry(int screen,
+                                          int& ix, int& iy, int& iw, int& ih) const
+{
+    const int cur = getScreen();
+    if (screen == cur || !inrange(screen, 0, desktop->getScreenCount() - 1))
+        return false;
+
+    const YRect from(desktop->getScreenGeometry(cur));
+    const YRect to(desktop->getScreenGeometry(screen));
+
+    getNormalGeometryInner(&ix, &iy, &iw, &ih);
+    int bx = borderXN(), by = borderYN();
+    int ow = min(iw + 2 * bx, int(to.width()));
+    int oh = min(ih + 2 * by + int(titleYN()), int(to.height()));
+    int ox = ix - bx - from.x() + to.x();
+    int oy = iy - by - from.y() + to.y();
+    ox = max(to.x(), min(ox, to.x() + int(to.width()) - ow));
+    oy = max(to.y(), min(oy, to.y() + int(to.height()) - oh));
+
+    ix = ox + bx;
+    iy = oy + by;
+    iw = ow - 2 * bx;
+    ih = oh - (2 * by + int(titleYN()));
+    return true;
+}
+
+// Outer geometry the window gets when maximized on the given monitor,
+// without changing anything.
+YRect YFrameWindow::maximizedGeometryOn(int screen) {
+    int ix, iy, iw, ih;
+    if (!relocateNormalGeometry(screen, ix, iy, iw, ih))
+        return geometry();
+
+    const int nX = normalX, nY = normalY, nW = normalW, nH = normalH;
+    const int pX = posX, pY = posY, pW = posW, pH = posH;
+
+    XSizeHints *sh = client()->sizeHints();
+    normalX = ix;
+    normalY = iy;
+    normalW = sh ? (iw - sh->base_width) / max(1, sh->width_inc) : iw;
+    normalH = sh ? (ih - sh->base_height) / max(1, sh->height_inc) : ih;
+    updateDerivedSize(getState() & WinStateMaximizedBoth);
+    YRect result(posX, posY, posW, posH);
+
+    normalX = nX; normalY = nY; normalW = nW; normalH = nH;
+    posX = pX; posY = pY; posW = pW; posH = pH;
+    return result;
+}
+
+// Move a maximized window to another monitor and maximize it there.
+void YFrameWindow::moveMaximizedToScreen(int screen) {
+    int ix, iy, iw, ih;
+    if (!relocateNormalGeometry(screen, ix, iy, iw, ih))
+        return;
+
+    if (opaqueMove)
+        drawMoveSizeFX(x(), y(), width(), height());
+
+    setNormalGeometryInner(ix, iy, iw, ih);
+
+    if (opaqueMove)
+        drawMoveSizeFX(x(), y(), width(), height());
+
+    if (taskBarWindowsHomeScreenOnly)
+        updateTaskBar();
+    statusMoveSize->setStatus(this);
+}
+
 void YFrameWindow::moveWindow(int newX, int newY) {
     const int oldScreen = taskBarWindowsHomeScreenOnly ? getScreen() : -1;
     
@@ -1081,6 +1188,11 @@ void YFrameWindow::handleMotion(const XMotionEvent &motion) {
         statusMoveSize->setStatus(this);
     }
     else if (movingWindow) {
+        if (isMaximizedAny()) {
+            int screen = pointerScreen(motion.x_root, motion.y_root);
+            if (screen != getScreen())
+                moveMaximizedToScreen(screen);
+        }
         int newX = x();
         int newY = y();
 

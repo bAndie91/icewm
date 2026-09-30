@@ -150,6 +150,13 @@ public:
                            int &newX, int &newY, int &newWidth, int &newHeight);
     void checkEdgeSwitch(int mouseX, int mouseY);
     void outlineMove();
+    // Dragging a maximized window across monitors: the window follows the
+    // pointer to the monitor under it and is re-maximized there.
+    bool isMaximizedAny() const { return isMaximizedHoriz() || isMaximizedVert(); }
+    int pointerScreen(int rootX, int rootY) const;
+    bool relocateNormalGeometry(int screen, int& ix, int& iy, int& iw, int& ih) const;
+    YRect maximizedGeometryOn(int screen);
+    void moveMaximizedToScreen(int screen);
     void outlineResize();
 
     void constrainPositionByModifier(int &x, int &y, const XMotionEvent &motion);
