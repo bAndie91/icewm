@@ -56,12 +56,20 @@ public:
 
     // Which input device was used last: keyboard, or mouse buttons/wheel
     // (plain pointer motion is ignored). XInput2 raw events; the core
-    // protocol cannot tell. False when unavailable or nothing seen yet.
+    // protocol cannot tell. Events are ordered by arrival, not by their
+    // (device dependent) timestamps.
     bool inputTrackingActive() const { return fInputTracking; }
-    bool keyboardUsedLastNotPointer() const;
-    // Monitor of the last mouse button/wheel event if it did not move the
-    // keyboard focus (click on the root window, taskbar, ...), else -1.
-    int lastClickScreenWithoutFocusChange() const;
+    bool keyboardUsedLastNotPointer() const {
+        return fInputTracking && fKeySeq > fClickSeq;
+    }
+    // Monitor of the last mouse button/wheel event if no focus change
+    // happened since (click on the root window, taskbar, an unfocused
+    // window that does not take focus on wheel, ...), else -1.
+    int lastClickScreenWithoutFocusChange() const {
+        return fInputTracking && fClickSeq > fFocusSeq ? fClickScreen : -1;
+    }
+    void noteFocusChange() { fFocusSeq = ++fSeq; }
+    static bool placementDebug();
 
     virtual void actionPerformed(YAction action, unsigned int modifiers = 0);
 
@@ -81,12 +89,17 @@ public:
 
 private:
     void initInputTracking();
+    void selectInputEvents();
+    void loadScrollAxes();
+    bool isScrollEvent(const void* rawEvent) const;
     bool fInputTracking = false;
     int fXi2Opcode = 0;
-    Time fLastKeyTime = 0;
-    Time fLastPointerTime = 0;
-    Window fClickFocus = None;   // focused client when the last click came in
+    unsigned fSeq = 0;
+    unsigned fKeySeq = 0;
+    unsigned fClickSeq = 0;
+    unsigned fFocusSeq = 0;
     int fClickScreen = -1;       // monitor under the pointer at that time
+    YArray<long> fScrollAxes;    // (source device id << 16) | valuator number
 
 public:
     void initFocusMode();

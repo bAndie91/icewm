@@ -1661,16 +1661,23 @@ void YWindowManager::setWindows(YArrange arrange, YAction action) {
 // time without grabbing input.
 int YWindowManager::getNewWindowScreen(YFrameWindow* frame) {
     const int count = getScreenCount();
+    const bool dbg = YWMApp::placementDebug();
+    auto pick = [&](const char* why, int s) {
+        if (dbg)
+            fprintf(stderr, "placement: \"%s\" -> monitor %d (%s)\n",
+                    frame->getTitle().c_str(), s, why);
+        return s;
+    };
     if (newWindowScreenPolicy <= 0 || count < 2) {
-        return fFocusWin ? fFocusWin->getScreen() :
+        return pick("legacy", fFocusWin ? fFocusWin->getScreen() :
                frame->owner() ? frame->owner()->getScreen() :
-               xineramaPrimaryScreen;
+               xineramaPrimaryScreen);
     }
 
     if (YFrameWindow* owner = frame->owner()) {
         int s = owner->getScreen();
         if (inrange(s, 0, count - 1))
-            return s;
+            return pick("owner", s);
     }
 
     const Window leader = frame->clientLeader();
@@ -1682,22 +1689,29 @@ int YWindowManager::getNewWindowScreen(YFrameWindow* frame) {
                 continue;
             int s = f->getScreen();
             if (inrange(s, 0, count - 1))
-                return s;
+                return pick("same application", s);
         }
     }
 
     // The user is probably looking where they last used an input device:
     // typing goes to the focused window, mouse activity to the pointer.
+    if (dbg)
+        fprintf(stderr, "placement: tracking=%d keyboard-newer=%d"
+                " click-screen-without-focus-change=%d focus=%s\n",
+                wmapp ? wmapp->inputTrackingActive() : 0,
+                wmapp ? wmapp->keyboardUsedLastNotPointer() : 0,
+                wmapp ? wmapp->lastClickScreenWithoutFocusChange() : -1,
+                fFocusWin ? "yes" : "none");
     if (wmapp && wmapp->keyboardUsedLastNotPointer() && fFocusWin) {
         // A click that left the focus alone (root window, taskbar) moved
         // the user's attention to that monitor although the focused
         // window did not follow.
         int c = wmapp->lastClickScreenWithoutFocusChange();
         if (inrange(c, 0, count - 1))
-            return c;
+            return pick("click without focus change", c);
         int s = fFocusWin->getScreen();
         if (inrange(s, 0, count - 1))
-            return s;
+            return pick("keyboard, focused window", s);
     }
 
     Window root, child;
@@ -1708,11 +1722,11 @@ int YWindowManager::getNewWindowScreen(YFrameWindow* frame) {
     {
         int s = getScreenForRect(rx, ry, 1, 1);
         if (inrange(s, 0, count - 1))
-            return s;
+            return pick("mouse pointer", s);
     }
 
     int s = fFocusWin ? fFocusWin->getScreen() : xineramaPrimaryScreen;
-    return inrange(s, 0, count - 1) ? s : 0;
+    return pick("fallback", inrange(s, 0, count - 1) ? s : 0);
 }
 
 void YWindowManager::getNewPosition(YFrameWindow *frame, int &x, int &y,
@@ -3435,6 +3449,8 @@ void YWindowManager::switchFocusTo(YFrameWindow *frame, bool reorderFocus) {
             fFocusWin = frame;
             fFocusWin->setWinFocus();
         }
+        if (wmapp)
+            wmapp->noteFocusChange();
 
         workspaces[activeWorkspace()].focused = frame;
     }
@@ -3449,6 +3465,8 @@ void YWindowManager::switchFocusFrom(YFrameWindow *frame) {
     if (fFocusWin == frame && frame) {
         fFocusWin = nullptr;
         frame->loseWinFocus();
+        if (wmapp)
+            wmapp->noteFocusChange();
     }
 }
 

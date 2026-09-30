@@ -365,3 +365,22 @@ monitor 1, key -> monitor 1; earlier owner/group/typing/motion cases
 unchanged. Residual: a wheel turn over an unfocused window on another
 monitor followed by typing into the (still focused) window on the first
 monitor is placed on the wheel's monitor.
+
+### Real-hardware robustness (user still saw wrong monitors after root click / wheel)
+
+Could not reproduce on real hardware (no /dev/uinput in the sandbox), so
+two plausible causes were removed and a diagnostic added:
+- Input recency used device timestamps and "focused client unchanged since
+  the click". Now everything is ordered by arrival in icewm's event loop
+  (`fKeySeq`, `fClickSeq`, `fFocusSeq`), and focus changes are counted in
+  `switchFocusTo()/switchFocusFrom()`. A click newer than the last focus
+  change wins over the focused window when a key follows it.
+- Smooth-scroll devices (libinput touchpads, most modern wheels) report
+  the wheel as scroll-valuator motion, not `XI_RawButtonPress`, so a wheel
+  turn was invisible. `XI_RawMotion` is now selected only when some device
+  has `XIScrollClass` axes (reloaded on `XI_HierarchyChanged`) and counts
+  only when a scroll axis is in the event's valuator mask. Plain motion
+  still does not count. Not testable under Xvfb (no scroll axes).
+- `ICEWM_PLACEMENT_DEBUG=1 icewm` logs raw key/click events with their
+  monitor and each placement decision with the reason.
+All earlier Xvfb scenarios still pass.

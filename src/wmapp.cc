@@ -1668,6 +1668,11 @@ void YWMApp::signalGuiEvent(GUIEvent ge) {
     guiSignaler->signal(ge);
 }
 
+bool YWMApp::placementDebug() {
+    static const bool debug = getenv("ICEWM_PLACEMENT_DEBUG") != nullptr;
+    return debug;
+}
+
 void YWMApp::initInputTracking() {
 #ifdef CONFIG_XINPUT2
     int event, error, major = 2, minor = 0;
@@ -1675,31 +1680,68 @@ void YWMApp::initInputTracking() {
                         &fXi2Opcode, &event, &error) &&
         XIQueryVersion(display(), &major, &minor) == Success)
     {
-        unsigned char bits[XIMaskLen(XI_LASTEVENT)] = {};
-        XISetMask(bits, XI_RawKeyPress);
-        XISetMask(bits, XI_RawButtonPress);
-        XIEventMask mask = { XIAllMasterDevices, int(sizeof bits), bits };
-        XISelectEvents(display(), root(), &mask, 1);
         fInputTracking = true;
+        loadScrollAxes();
+        selectInputEvents();
     }
+    if (placementDebug())
+        fprintf(stderr, "placement: XInput2 tracking %s, %d scroll axes\n",
+                fInputTracking ? "on" : "off", int(fScrollAxes.getCount()));
 #endif
 }
 
-bool YWMApp::keyboardUsedLastNotPointer() const {
-    return fInputTracking && fLastKeyTime != 0 &&
-           (fLastPointerTime == 0 ||
-            int32_t(uint32_t(fLastKeyTime) - uint32_t(fLastPointerTime)) > 0);
+void YWMApp::selectInputEvents() {
+#ifdef CONFIG_XINPUT2
+    // Smooth-scrolling devices report the wheel as motion of a scroll
+    // valuator, not as a button press, so raw motion is needed as well,
+    // but only when some device has scroll axes.
+    unsigned char raw[XIMaskLen(XI_LASTEVENT)] = {};
+    unsigned char hier[XIMaskLen(XI_LASTEVENT)] = {};
+    XISetMask(raw, XI_RawKeyPress);
+    XISetMask(raw, XI_RawButtonPress);
+    if (fScrollAxes.getCount())
+        XISetMask(raw, XI_RawMotion);
+    XISetMask(hier, XI_HierarchyChanged);
+    XIEventMask masks[2] = {
+        { XIAllMasterDevices, int(sizeof raw), raw },
+        { XIAllDevices, int(sizeof hier), hier },
+    };
+    XISelectEvents(display(), root(), masks, 2);
+#endif
 }
 
-int YWMApp::lastClickScreenWithoutFocusChange() const {
-    if (fInputTracking == false || fClickScreen < 0 || manager == nullptr)
-        return -1;
-    YFrameWindow* f = manager->getFocus();
-    Window now = (f && f->client()) ? f->client()->handle() : None;
-    // The click's own focus change (click on an application window) is
-    // applied after the raw event arrives, so a different focus now means
-    // the click took the focus and the focused window is the right guide.
-    return now == fClickFocus ? fClickScreen : -1;
+void YWMApp::loadScrollAxes() {
+#ifdef CONFIG_XINPUT2
+    fScrollAxes.clear();
+    int n = 0;
+    XIDeviceInfo* info = XIQueryDevice(display(), XIAllDevices, &n);
+    for (int i = 0; info && i < n; ++i) {
+        for (int k = 0; k < info[i].num_classes; ++k) {
+            if (info[i].classes[k]->type == XIScrollClass) {
+                const XIScrollClassInfo* sc =
+                    reinterpret_cast<XIScrollClassInfo*>(info[i].classes[k]);
+                fScrollAxes.append((long(info[i].deviceid) << 16) | sc->number);
+            }
+        }
+    }
+    if (info)
+        XIFreeDeviceInfo(info);
+#endif
+}
+
+bool YWMApp::isScrollEvent(const void* rawEvent) const {
+#ifdef CONFIG_XINPUT2
+    const XIRawEvent* raw = static_cast<const XIRawEvent*>(rawEvent);
+    for (int i = 0; i < fScrollAxes.getCount(); ++i) {
+        const int dev = int(fScrollAxes[i] >> 16);
+        const int num = int(fScrollAxes[i] & 0xFFFF);
+        if ((dev == raw->sourceid || dev == raw->deviceid) &&
+            num < raw->valuators.mask_len * 8 &&
+            XIMaskIsSet(raw->valuators.mask, num))
+            return true;
+    }
+#endif
+    return false;
 }
 
 bool YWMApp::filterEvent(const XEvent &xev) {
@@ -1711,12 +1753,18 @@ bool YWMApp::filterEvent(const XEvent &xev) {
             const_cast<XGenericEventCookie*>(&xev.xcookie);
         if (XGetEventData(display(), cookie)) {
             if (cookie->data) {
-                const XIRawEvent* raw =
-                    static_cast<const XIRawEvent*>(cookie->data);
-                if (cookie->evtype == XI_RawKeyPress)
-                    fLastKeyTime = raw->time;
-                else if (cookie->evtype == XI_RawButtonPress) {
-                    fLastPointerTime = raw->time;
+                const int type = cookie->evtype;
+                bool key = type == XI_RawKeyPress;
+                bool click = type == XI_RawButtonPress ||
+                    (type == XI_RawMotion && isScrollEvent(cookie->data));
+                if (type == XI_HierarchyChanged) {
+                    loadScrollAxes();
+                    selectInputEvents();
+                }
+                if (key)
+                    fKeySeq = ++fSeq;
+                if (click) {
+                    fClickSeq = ++fSeq;
                     // Raw events carry no position; ask where the pointer is.
                     Window rw, cw;
                     int rx, ry, wx, wy;
@@ -1725,10 +1773,11 @@ bool YWMApp::filterEvent(const XEvent &xev) {
                                                  &rx, &ry, &wx, &wy, &mk)
                                  ? desktop->getScreenForRect(rx, ry, 1, 1)
                                  : -1;
-                    YFrameWindow* f = manager ? manager->getFocus() : nullptr;
-                    fClickFocus = (f && f->client()) ? f->client()->handle()
-                                                     : None;
                 }
+                if (placementDebug() && (key || click))
+                    fprintf(stderr, "placement: raw %s (evtype %d) seq %u"
+                            " screen %d\n", key ? "key" : "click/wheel",
+                            type, fSeq, click ? fClickScreen : -1);
             }
             XFreeEventData(display(), cookie);
         }

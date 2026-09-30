@@ -225,7 +225,11 @@ mouse button was pressed or the wheel turned more recently (plain pointer
 motion is ignored), or the monitor of the focused window if a key was. A mouse click that
 did not move the focus (on the root window or a taskbar, say) counts as
 the monitor the click was on even if a key is pressed afterwards, since
-the focused window is then not where the user is looking. (Telling the devices apart needs XInput2, i.e. icewm
+the focused window is then not where the user is looking. Wheel turns of
+smooth-scrolling devices, which X reports as motion of a scroll axis and
+not as a button press, are recognized as well. Set the environment
+variable C<ICEWM_PLACEMENT_DEBUG> to make icewm log to standard error
+the input events it saw and why each new window went to its monitor. (Telling the devices apart needs XInput2, i.e. icewm
 built with CONFIG_XINPUT2; without it the pointer is always used.)
 2 is like 1, but before that it prefers the monitor of the most recently
 focused window of the same application (same C<WM_CLIENT_LEADER>).
