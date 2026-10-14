@@ -105,9 +105,12 @@ void YClientContainer::handleButton(const XButtonEvent &button) {
         else if (gMouseWinMove == button) {
             XAllowEvents(xapp->display(), AsyncPointer, CurrentTime);
 
-            // double click with the move button toggles maximization
+            // double click with the move button toggles maximization on the
+            // monitor under the pointer instead of whichever monitor currently
+            // owns the largest overlap of the window.
             if (isMoveDoubleClick(button)) {
-                getFrame()->actionPerformed(actionMaximize, button.state);
+                getFrame()->maximizeOnPointer(actionMaximize, button.x_root,
+                                              button.y_root);
                 return ;
             }
             if (getFrame()->canMove()) {

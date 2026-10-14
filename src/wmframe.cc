@@ -1746,6 +1746,26 @@ void YFrameWindow::doMaximize(int flags) {
         maybeFocus();
 }
 
+void YFrameWindow::maximizeOnScreen(int flags, int screen) {
+    if (screen >= 0 && screen != getScreen()) {
+        int ix, iy, iw, ih;
+        if (relocateNormalGeometry(screen, ix, iy, iw, ih))
+            setNormalGeometryInner(ix, iy, iw, ih);
+    }
+    doMaximize(flags);
+}
+
+void YFrameWindow::maximizeOnPointer(YAction action, int rootX, int rootY) {
+    if (action == actionMaximize)
+        maximizeOnScreen(WinStateMaximizedBoth, pointerScreen(rootX, rootY));
+    else if (action == actionMaximizeVert)
+        maximizeOnScreen(WinStateMaximizedVert, pointerScreen(rootX, rootY));
+    else if (action == actionMaximizeHoriz)
+        maximizeOnScreen(WinStateMaximizedHoriz, pointerScreen(rootX, rootY));
+    else
+        actionPerformed(action);
+}
+
 void YFrameWindow::wmMaximize() {
     doMaximize(WinStateMaximizedBoth);
 }

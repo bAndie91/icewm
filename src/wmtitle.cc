@@ -249,7 +249,11 @@ void YFrameTitleBar::handleClick(const XButtonEvent &up, int count) {
         }
     }
     if (action != actionNull) {
-        getFrame()->actionPerformed(action, up.state);
+        if (action == actionMaximize || action == actionMaximizeVert ||
+            action == actionMaximizeHoriz)
+            getFrame()->maximizeOnPointer(action, up.x_root, up.y_root);
+        else
+            getFrame()->actionPerformed(action, up.state);
     }
 }
 

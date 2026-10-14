@@ -114,6 +114,8 @@ public:
     void restoreHiddenTransients();
 
     void doMaximize(int flags);
+    void maximizeOnScreen(int flags, int screen);
+    void maximizeOnPointer(YAction action, int rootX, int rootY);
 
     void loseWinFocus();
     void setWinFocus();
