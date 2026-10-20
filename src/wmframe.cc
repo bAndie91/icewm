@@ -2116,10 +2116,14 @@ void YFrameWindow::updateFocusOnMap(bool& doActivate) {
         }
     }
 
+    // A window must not be older than the last user activity. A new
+    // window only becomes part of that history when it is activated,
+    // so that a window which is not focused cannot block later windows.
     const UserTime& userTime(client()->userTime());
-    manager->updateUserTime(userTime);
     if (doActivate && userTime.good())
-        doActivate = (userTime.time() && userTime == manager->lastUserTime());
+        doActivate = userTime.time() && !(userTime < manager->lastUserTime());
+    if (doActivate)
+        manager->updateUserTime(userTime);
 }
 
 bool YFrameWindow::canShow() const {

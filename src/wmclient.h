@@ -85,8 +85,21 @@ private:
         XTimeMask = 0xFFFFFFFFU,       // milliseconds
         XTimeRange = 0x7FFFFFFFU,      // milliseconds
         SInterval = 0x3FFFFFFFU / 1000,     // seconds
+        XTimeSlack = 5000U,            // milliseconds
     };
 public:
+    /*
+     * Is the time stamp later than the given X server time?
+     * A client cannot know of user activity that has not yet happened,
+     * so such a time stamp is bogus. Allow a little slack for clock
+     * granularity. Because X11 time stamps wrap around, a time stamp
+     * is only recognized as being in the future when it is less than
+     * half the time range ahead.
+     */
+    static bool after(unsigned xtime, unsigned now) {
+        unsigned ahead = (xtime - now) & XTimeMask;
+        return ahead > XTimeSlack && ahead <= XTimeRange;
+    }
     UserTime() : xtime(0), valid(false), since(0) { }
     explicit UserTime(unsigned xtime, bool valid = true) :
         xtime(xtime & XTimeMask), valid(valid), since(seconds()) { }
@@ -291,6 +304,8 @@ public:
     bool getNetStartupId(unsigned& time);
     bool getUserTime(Window window, unsigned& time);
     bool getUserTimeWindow();
+    bool plausibleUserTime(unsigned time);
+    void updateManagerUserTime();
     bool getNetWMWindowOpacity(long &opacity);
     bool getNetWMWindowType(WindowType *window_type);
     void setNetWMFullscreenMonitors(int top, int bottom, int left, int right);

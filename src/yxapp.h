@@ -145,6 +145,7 @@ public:
 
     void saveEventTime(const XEvent &xev);
     Time getEventTime(const char *debug) const;
+    Time queryServerTime();
 
     bool grabEvents(YWindow *win, Cursor ptr, unsigned long eventMask,
                     bool grabMouse = true, bool grabKeyboard = true,

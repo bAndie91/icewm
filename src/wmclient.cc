@@ -670,8 +670,8 @@ void YFrameClient::handleProperty(const XPropertyEvent &property) {
     if (property.window != handle()) {
         if (property.window == fUserTimeWindow) {
             if (property.atom == _XA_NET_WM_USER_TIME) {
-                if (getUserTime() && visible())
-                    manager->updateUserTime(fUserTime);
+                if (getUserTime())
+                    updateManagerUserTime();
             }
         }
         return;
@@ -777,20 +777,20 @@ void YFrameClient::handleProperty(const XPropertyEvent &property) {
         } else if (property.atom == _XA_NET_WM_USER_TIME) {
             MSG(("change: net wm user time"));
             if (new_prop) prop.net_wm_user_time = true;
-            if (getUserTime() && visible())
-                manager->updateUserTime(fUserTime);
+            if (getUserTime())
+                updateManagerUserTime();
             prop.net_wm_user_time = new_prop;
         } else if (property.atom == _XA_NET_WM_USER_TIME_WINDOW) {
             MSG(("change: net wm user time window"));
             if (new_prop) prop.net_wm_user_time_window = true;
-            if (getUserTimeWindow() && getUserTime() && visible())
-                manager->updateUserTime(fUserTime);
+            if (getUserTimeWindow() && getUserTime())
+                updateManagerUserTime();
             prop.net_wm_user_time_window = new_prop;
         } else if (property.atom == _XA_NET_STARTUP_ID) {
             MSG(("change: net startup id"));
             prop.net_startup_id = new_prop;
-            if (getUserTime() && visible())
-                manager->updateUserTime(fUserTime);
+            if (getUserTime())
+                updateManagerUserTime();
         } else if (property.atom == _XA_NET_WM_WINDOW_OPACITY) {
             MSG(("change: net wm window opacity"));
             if (new_prop) prop.net_wm_window_opacity = true;
@@ -1983,6 +1983,43 @@ bool YFrameClient::getUserTimeWindow() {
     return false;
 }
 
+/*
+ * A client can only know about user activity that has already happened.
+ * So a time stamp that is ahead of the server time is bogus. Such a stamp
+ * would otherwise appear to be newer than any genuine user activity and
+ * stop every new window from getting the focus until it ages out.
+ * Ignore bogus stamps, as if the client had not provided one.
+ * The special value zero is always acceptable, it means: do not focus.
+ */
+bool YFrameClient::plausibleUserTime(unsigned time) {
+    if (time == 0)
+        return true;
+
+    // Most stamps are not later than an event that was already seen.
+    Time seen = xapp->getEventTime("plausibleUserTime");
+    if (seen != CurrentTime && UserTime::after(time, unsigned(seen)) == false)
+        return true;
+
+    // Otherwise check against the actual current time of the X server.
+    Time now = xapp->queryServerTime();
+    if (now == CurrentTime || UserTime::after(time, unsigned(now)) == false)
+        return true;
+
+    MSG(("ignoring user time %u, it is ahead of server time %lu", time, now));
+    return false;
+}
+
+/*
+ * Only the focused window receives user input. So only the time stamps
+ * of the focused window may advance the time of the last user activity.
+ * Other windows can write any value, or update it for other reasons.
+ */
+void YFrameClient::updateManagerUserTime() {
+    YFrameWindow* frame = getFrame();
+    if (frame && frame->focused())
+        manager->updateUserTime(fUserTime);
+}
+
 bool YFrameClient::getUserTime() {
     bool updated = false;
     unsigned time = None;
@@ -1990,17 +2027,20 @@ bool YFrameClient::getUserTime() {
     if (frameOption(YFrameWindow::foIgnoreUserTime))
         return updated;
     if (prop.net_startup_id &&
-        getNetStartupId(time)) {
+        getNetStartupId(time) &&
+        plausibleUserTime(time)) {
         updated = fUserTime.update(time);
     }
     if (prop.net_wm_user_time_window &&
         (fUserTimeWindow || getUserTimeWindow()) &&
         getUserTime(fUserTimeWindow, time)) {
-        updated |= fUserTime.update(time);
+        if (plausibleUserTime(time))
+            updated |= fUserTime.update(time);
     }
     else if (prop.net_wm_user_time &&
         getUserTime(handle(), time)) {
-        updated |= fUserTime.update(time);
+        if (plausibleUserTime(time))
+            updated |= fUserTime.update(time);
     }
     return updated;
 }

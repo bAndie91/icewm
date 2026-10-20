@@ -12,6 +12,7 @@
 #include "intl.h"
 #undef override
 #include <ctype.h>
+#include <unistd.h>
 #include <X11/Xproto.h>
 #ifdef XINERAMA
 #include <X11/extensions/Xinerama.h>
@@ -871,6 +872,29 @@ void YXApplication::saveEventTime(const XEvent& xev) {
 
 Time YXApplication::getEventTime(const char *) const {
     return lastEventTime;
+}
+
+/*
+ * Ask the X server for its current time. The time of the last event
+ * that was seen can be arbitrarily old. A property change on a private
+ * window yields a PropertyNotify event carrying the current server time.
+ * This costs one round trip, so use it sparingly.
+ */
+Time YXApplication::queryServerTime() {
+    Window window = XCreateWindow(display(), root(), -1, -1, 1, 1, 0,
+                                  0, InputOnly, CopyFromParent, 0, nullptr);
+    if (window == None)
+        return CurrentTime;
+
+    XSelectInput(display(), window, PropertyChangeMask);
+    XID pid = getpid();
+    XChangeProperty(display(), window, _XA_NET_WM_PID, XA_CARDINAL, 32,
+                    PropModeReplace, (unsigned char *) &pid, 1);
+    XEvent event;
+    XWindowEvent(display(), window, PropertyChangeMask, &event);
+    XDestroyWindow(display(), window);
+    saveEventTime(event);
+    return event.xproperty.time;
 }
 
 bool YXApplication::haveColormaps(Display* dpy) {
