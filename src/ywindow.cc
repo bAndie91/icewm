@@ -1856,6 +1856,33 @@ int YWindow::getScreen() {
     return desktop->getScreenForRect(dx, dy, width(), height());
 }
 
+// A monitor whose area lies completely inside another monitor's area is
+// not a separate monitor but a mirror (clone) of it, typically a smaller
+// or scaled output showing the top left part of a larger one. Treating it
+// as its own screen makes every per-screen thing (the taskbars, the
+// work area, window placement) exist twice in the same part of the
+// desktop, and then both copies are visible on every mirrored monitor.
+// Return the largest other screen in `all` which encloses `info`, or null.
+static const DesktopScreenInfo* enclosingScreen(
+        const DesktopScreenInfo& info,
+        const YArray<DesktopScreenInfo>& all)
+{
+    const DesktopScreenInfo* best = nullptr;
+    for (int i = 0; i < all.getCount(); ++i) {
+        const DesktopScreenInfo& o = all[i];
+        if (o.x_org <= info.x_org && o.y_org <= info.y_org &&
+            long(o.x_org) + long(o.width) >= long(info.x_org) + long(info.width) &&
+            long(o.y_org) + long(o.height) >= long(info.y_org) + long(info.height) &&
+            (o.width != info.width || o.height != info.height) &&
+            (best == nullptr ||
+             long(o.width) * long(o.height) > long(best->width) * long(best->height)))
+        {
+            best = &o;
+        }
+    }
+    return best;
+}
+
 bool YDesktop::addScreen(DesktopScreenInfo& info) {
     for (DesktopScreenInfo& xi : xiInfo) {
         if (xi == info) {
@@ -1898,6 +1925,7 @@ bool YDesktop::updateXineramaInfo(unsigned& horizontal, unsigned& vertical) {
             }
         }
 
+        YArray<DesktopScreenInfo> crtcs;
         for (int i = 0; xrrsr && i < xrrsr->ncrtc; i++) {
             XRRCrtcInfo *ci = XRRGetCrtcInfo(xapp->display(), xrrsr,
                                              xrrsr->crtcs[i]);
@@ -1906,11 +1934,23 @@ bool YDesktop::updateXineramaInfo(unsigned& horizontal, unsigned& vertical) {
             if (ci->width && ci->height) {
                 DesktopScreenInfo si(int(xrrsr->crtcs[i]),
                                      ci->x, ci->y, ci->width, ci->height);
-                change |= addScreen(si);
-                if (primaryCRT == xrrsr->crtcs[i])
-                    primaryInfo = si;
+                crtcs += si;
             }
             XRRFreeCrtcInfo(ci);
+        }
+        for (int i = 0; i < crtcs.getCount(); i++) {
+            DesktopScreenInfo si(crtcs[i]);
+            const DesktopScreenInfo* outer = enclosingScreen(si, crtcs);
+            if (outer) {
+                MSG(("xrr %d is a mirror of %d", si.screen_number,
+                            outer->screen_number));
+                if (primaryCRT == RRCrtc(si.screen_number))
+                    primaryInfo = *outer;
+                continue;
+            }
+            change |= addScreen(si);
+            if (primaryCRT == RRCrtc(si.screen_number))
+                primaryInfo = si;
         }
         for (int i = getScreenCount(); --i >= 0; ) {
             if (xiInfo[i].usage == 0) {
@@ -1948,6 +1988,7 @@ bool YDesktop::updateXineramaInfo(unsigned& horizontal, unsigned& vertical) {
                XineramaQueryScreens(xapp->display(), &count));
         MSG(("xinerama: heads=%d", count));
         if (screens) {
+            YArray<DesktopScreenInfo> heads;
             for (int i = 0; i < count; i++) {
                 const XineramaScreenInfo& xine(screens[i]);
                 MSG(("xinerama: %d +%d+%d %dx%d", xine.screen_number,
@@ -1955,7 +1996,12 @@ bool YDesktop::updateXineramaInfo(unsigned& horizontal, unsigned& vertical) {
                 DesktopScreenInfo si(i, xine.x_org, xine.y_org,
                                      unsigned(xine.width),
                                      unsigned(xine.height));
-                change |= addScreen(si);
+                heads += si;
+            }
+            for (int i = 0; i < heads.getCount(); i++) {
+                DesktopScreenInfo si(heads[i]);
+                if (enclosingScreen(si, heads) == nullptr)
+                    change |= addScreen(si);
             }
         }
     }
