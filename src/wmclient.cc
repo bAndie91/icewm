@@ -98,7 +98,6 @@ YFrameClient::YFrameClient(YWindow *parent, YFrameWindow *frame, Window win,
         getWMHints();
         getWindowRole();
         getMwmHints();
-        getUserTime();
 
 #ifdef CONFIG_SHAPE
         if (shapes.supported) {
@@ -111,6 +110,12 @@ YFrameClient::YFrameClient(YWindow *parent, YFrameWindow *frame, Window win,
                 loadWindowOptions(hintOptions, true);
             loadWindowOptions(defOptions, false);
         }
+
+        // Must come after the window options are loaded, because
+        // getUserTime() consults the ignoreUserTime window option.
+        // Otherwise the initial time stamp, which is the one that
+        // decides whether a new window gets focus, is always recorded.
+        getUserTime();
     }
     clientContext.save(handle(), this);
 }
@@ -781,7 +786,8 @@ void YFrameClient::handleProperty(const XPropertyEvent &property) {
             if (getUserTimeWindow() && getUserTime() && visible())
                 manager->updateUserTime(fUserTime);
             prop.net_wm_user_time_window = new_prop;
-        } else if (property.atom == _XA_NET_STARTUP_ID && prop.net_startup_id) {
+        } else if (property.atom == _XA_NET_STARTUP_ID) {
+            MSG(("change: net startup id"));
             prop.net_startup_id = new_prop;
             if (getUserTime() && visible())
                 manager->updateUserTime(fUserTime);
@@ -1889,27 +1895,43 @@ bool YFrameClient::getNetWMStrutPartial(int *left, int *right, int *top, int *bo
     return false;
 }
 
+/*
+ * Extract the X11 time stamp from a startup id of the form "...._TIME<ms>".
+ * The time stamp is a suffix of the id, but "_TIME" may also occur earlier
+ * in the id, for example in a program or host name. So examine every
+ * occurrence and use the last one that is followed by nothing but digits.
+ */
+static bool parseStartupIdTime(const char* id, unsigned& time) {
+    bool found = false;
+    for (const char* token = strstr(id, "_TIME");
+         token != nullptr;
+         token = strstr(token + 1, "_TIME"))
+    {
+        const char* begin = token + 5;
+        if (*begin < '0' || *begin > '9')
+            continue;
+
+        char* end = nullptr;
+        errno = 0;
+        unsigned long number = strtoul(begin, &end, 10);
+        if (errno || end == begin || *end || number > UINT_MAX)
+            continue;
+
+        time = unsigned(number);
+        if (time == -1U)
+            time = -2U;
+        found = true;
+    }
+    return found;
+}
+
 bool YFrameClient::getNetStartupId(unsigned& time) {
     if (!prop.net_startup_id)
         return false;
 
     YTextProperty id(nullptr);
     if (XGetTextProperty(xapp->display(), handle(), &id, _XA_NET_STARTUP_ID)) {
-        char* token = strstr((char *)id.value, "_TIME");
-        if (token && token[5] && token[5] != '-') {
-            char* begin = token + 5;
-            char* end = begin;
-            errno = 0;
-            unsigned long number = strtoul(begin, &end, 10);
-            if (errno || end == begin || *end || number > UINT_MAX) {
-                return false;
-            }
-
-            time = unsigned(number);
-            if (time == -1U)
-                time = -2U;
-            return true;
-        }
+        return id.value && parseStartupIdTime((const char *)id.value, time);
     }
     return false;
 }
