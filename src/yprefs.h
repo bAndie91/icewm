@@ -49,8 +49,10 @@ XSV(const char *, xineramaPrimaryScreenName,    0)
 // Per-widget monitor selection for the "singleton" taskbar applets (see
 // MULTITASKBAR-PLAN.md, D2/Piece 3). Each is empty by default, meaning
 // "follow XineramaPrimaryScreen/XRRPrimaryScreenName as before"; resolved
-// via YDesktop::screenFromDescriptor(), so a number or an XRandR output
-// name both work, and an unplugged/invalid value falls back to primary.
+// via YDesktop::screenFromDescriptor(). The value is a precedence list
+// (comma/whitespace separated) of numbers and/or XRandR output names; the
+// first entry naming an existing monitor wins, and if none does (e.g. all
+// unplugged) it falls back to primary.
 XSV(const char *, taskBarMailboxScreen,         0)
 XSV(const char *, taskBarCPUStatusScreen,       0)
 XSV(const char *, taskBarMEMStatusScreen,       0)

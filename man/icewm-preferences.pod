@@ -798,39 +798,42 @@ Primary screen for xinerama (taskbar, ...).
 
 =item B<TaskBarMailboxScreen>=""
 
-Monitor (a number, or an xrandr output name such as "DP-1") to show the
-mailbox status on, when B<TaskBarShowOnAllMonitors> is set. Empty means
-follow B<XineramaPrimaryScreen>/B<XRRPrimaryScreenName>; an unplugged or
-invalid value falls back to the primary screen rather than hiding the
-widget.
+Monitors to show the mailbox status on, when B<TaskBarShowOnAllMonitors>
+is set. The value is a precedence list of monitor numbers and/or xrandr
+output names (such as "DP-1"), separated by commas and/or whitespace, e.g.
+"DP-2,HDMI-1,0". The entries are tried in order and the first one naming
+an existing monitor wins. Empty means follow
+B<XineramaPrimaryScreen>/B<XRRPrimaryScreenName>; if no entry names an
+existing (e.g. unplugged) monitor, it falls back to the primary screen
+rather than hiding the widget.
 
 =item B<TaskBarCPUStatusScreen>=""
 
-Monitor for the CPU status meter; see B<TaskBarMailboxScreen>.
+Monitors for the CPU status meter; see B<TaskBarMailboxScreen>.
 
 =item B<TaskBarMEMStatusScreen>=""
 
-Monitor for the MEM status meter; see B<TaskBarMailboxScreen>.
+Monitors for the MEM status meter; see B<TaskBarMailboxScreen>.
 
 =item B<TaskBarNetStatusScreen>=""
 
-Monitor for the net status meter; see B<TaskBarMailboxScreen>.
+Monitors for the net status meter; see B<TaskBarMailboxScreen>.
 
 =item B<TaskBarAPMScreen>=""
 
-Monitor for the APM/battery status; see B<TaskBarMailboxScreen>.
+Monitors for the APM/battery status; see B<TaskBarMailboxScreen>.
 
 =item B<TaskBarKeyboardScreen>=""
 
-Monitor for the keyboard layout indicator; see B<TaskBarMailboxScreen>.
+Monitors for the keyboard layout indicator; see B<TaskBarMailboxScreen>.
 
 =item B<TaskBarSystemTrayScreen>=""
 
-Monitor for the system tray; see B<TaskBarMailboxScreen>.
+Monitors for the system tray; see B<TaskBarMailboxScreen>.
 
 =item B<TaskBarAddressBarScreen>=""
 
-Monitor for the address bar; see B<TaskBarMailboxScreen>.
+Monitors for the address bar; see B<TaskBarMailboxScreen>.
 
 =item B<KeyboardLayouts>=""
 

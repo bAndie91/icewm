@@ -20,7 +20,8 @@ first when picking this back up.
   - Replicated on every bar: start menu button, `ObjectBar` toolbar,
     clock, window-list-menu button, show-desktop button, workspace pager.
   - Singleton, each independently placeable on a chosen monitor via its
-    own preference (number, or an xrandr output name like `DP-1`; empty
+    own preference (a precedence list of numbers and/or xrandr output
+    names like `DP-1`, comma/whitespace separated, first existing wins; empty
     = fall back to `XineramaPrimaryScreen`/`XRRPrimaryScreenName` as
     today): system tray, mailbox status, CPU/MEM/Net status, APM/battery,
     keyboard-layout indicator, address bar. Proposed pref names (final

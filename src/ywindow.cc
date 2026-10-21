@@ -2055,14 +2055,13 @@ void YDesktop::getScreenGeometry(int *x, int *y,
     *height = info.height;
 }
 
-int YDesktop::screenFromDescriptor(const char* descriptor, int fallback) {
-    if (isEmpty(descriptor))
-        return fallback;
-
+int YDesktop::screenFromSingleDescriptor(const char* descriptor) {
     char* end = nullptr;
     long n = strtol(descriptor, &end, 10);
-    if (end && *end == '\0' && inrange(int(n), 0, xiInfo.getCount() - 1))
-        return int(n);
+    if (end && end != descriptor && *end == '\0') {
+        // a plain number is always an index, never an output name
+        return inrange(int(n), 0, xiInfo.getCount() - 1) ? int(n) : -1;
+    }
 
 #ifdef CONFIG_XRANDR
     if (xrandr.supported && !xrrDisable) {
@@ -2091,7 +2090,39 @@ int YDesktop::screenFromDescriptor(const char* descriptor, int fallback) {
         }
     }
 #endif
-    MSG(("screenFromDescriptor: no match for \"%s\", using fallback %d",
+    return -1;
+}
+
+int YDesktop::screenFromDescriptor(const char* descriptor, int fallback) {
+    if (isEmpty(descriptor))
+        return fallback;
+
+    // The descriptor is a precedence list of monitor numbers and/or
+    // XRandR output names separated by commas and/or whitespace; the first
+    // entry which names an existing monitor wins.
+    const char* p = descriptor;
+    while (*p) {
+        while (*p == ',' || isspace((unsigned char) *p))
+            ++p;
+        const char* start = p;
+        while (*p && *p != ',' && !isspace((unsigned char) *p))
+            ++p;
+        if (p == start)
+            continue;
+        char token[128];
+        size_t len = size_t(p - start);
+        if (len >= sizeof token) {
+            MSG(("screenFromDescriptor: token too long, skipped"));
+            continue;
+        }
+        memcpy(token, start, len);
+        token[len] = '\0';
+        int screen = screenFromSingleDescriptor(token);
+        if (screen >= 0)
+            return screen;
+        MSG(("screenFromDescriptor: no match for \"%s\"", token));
+    }
+    MSG(("screenFromDescriptor: no match in \"%s\", using fallback %d",
          descriptor, fallback));
     return fallback;
 }

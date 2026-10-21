@@ -388,11 +388,15 @@ public:
                            int screen_no = -1);
     int getScreenForRect(int x, int y, unsigned width, unsigned height);
 
-    // Resolve a preference value naming a monitor: empty string -> fallback,
-    // a plain number -> that screen index (if in range), otherwise treated
-    // as an XRandR output name (e.g. "DP-1") and resolved to the screen
-    // index currently driven by that output. Falls back on any lookup miss.
+    // Resolve a preference value naming monitors. The value is a
+    // precedence list of entries separated by commas and/or whitespace;
+    // each entry is either a plain number (screen index) or an XRandR output
+    // name (e.g. "DP-1"), resolved to the screen index currently driven by
+    // that output. The first entry naming an existing monitor wins. An empty
+    // value, or a list where no entry matches, yields the fallback.
     int screenFromDescriptor(const char* descriptor, int fallback);
+    // Resolve one list entry; returns -1 if it names no existing monitor.
+    int screenFromSingleDescriptor(const char* descriptor);
 
     int getScreenCount() const { return xiInfo.getCount(); }
 
